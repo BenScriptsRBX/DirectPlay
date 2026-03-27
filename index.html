@@ -4,63 +4,236 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CastFlow Receiver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            background: #000;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            cursor: none;
+        :root {
+            --white: #ffffff;
+            --dim: rgba(255,255,255,0.45);
+            --dimmer: rgba(255,255,255,0.15);
+            --glass: rgba(255,255,255,0.07);
+            --glass-border: rgba(255,255,255,0.12);
+            --accent: #e8ff47;
         }
 
+        html, body {
+            width: 100%; height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: 'DM Sans', sans-serif;
+            cursor: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Video ─────────────────────────────────────────────────────────── */
         #videoEl {
-            width: 100vw;
-            height: 100vh;
+            position: fixed;
+            inset: 0;
+            width: 100%; height: 100%;
             object-fit: contain;
             background: #000;
             display: block;
+            z-index: 0;
         }
 
-        /* Overlay */
+        /* ── Waiting Screen ─────────────────────────────────────────────────── */
+        #waitingScreen {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            gap: 0;
+        }
+
+        /* subtle scan-line texture */
+        #waitingScreen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.015) 2px,
+                rgba(255,255,255,0.015) 4px
+            );
+            pointer-events: none;
+        }
+
+        .wt-logo {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 8px;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-bottom: 56px;
+        }
+
+        .wt-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 48px 64px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(12px);
+            min-width: 380px;
+        }
+
+        .wt-label {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        #localIp {
+            font-family: 'DM Mono', monospace;
+            font-size: 48px;
+            font-weight: 500;
+            color: var(--white);
+            letter-spacing: 2px;
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+
+        .wt-sublabel {
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--dimmer);
+            text-transform: uppercase;
+        }
+
+        .wt-divider {
+            width: 1px;
+            height: 32px;
+            background: var(--glass-border);
+            margin: 28px 0;
+        }
+
+        #statusMsg {
+            font-size: 13px;
+            color: var(--dim);
+            letter-spacing: 1px;
+        }
+
+        /* dot loader */
+        .dot-loader {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .dot-loader span {
+            width: 5px; height: 5px;
+            background: var(--dimmer);
+            border-radius: 50%;
+            animation: dotPulse 1.6s ease-in-out infinite;
+        }
+        .dot-loader span:nth-child(2) { animation-delay: 0.25s; }
+        .dot-loader span:nth-child(3) { animation-delay: 0.5s; }
+
+        @keyframes dotPulse {
+            0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* manual IP input fallback */
+        .wt-manual {
+            margin-top: 32px;
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #manualIpInput {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--white);
+            font-family: 'DM Mono', monospace;
+            font-size: 16px;
+            padding: 12px 18px;
+            width: 200px;
+            letter-spacing: 1px;
+        }
+
+        #manualIpInput::placeholder { color: var(--dimmer); }
+
+        #manualIpBtn {
+            background: var(--glass);
+            border: none;
+            border-left: 1px solid var(--glass-border);
+            color: var(--dim);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 12px 18px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        #manualIpBtn:hover {
+            background: rgba(255,255,255,0.12);
+            color: var(--white);
+        }
+
+        .wt-manual-label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--dimmer);
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        /* ── Playback Overlay ───────────────────────────────────────────────── */
         #overlay {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 0 60px 48px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.95));
+            bottom: 0; left: 0; right: 0;
+            padding: 0 64px 52px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.92) 60%);
             transform: translateY(100%);
-            transition: transform 0.3s ease;
-            z-index: 100;
+            transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+            z-index: 20;
         }
 
         #overlay.visible { transform: translateY(0); }
 
         #mediaTitle {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 600;
-            color: #fff;
-            margin-bottom: 20px;
+            color: var(--white);
+            margin-bottom: 22px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: -0.3px;
         }
 
         .progress-wrapper {
             position: relative;
             width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.3);
+            height: 3px;
+            background: var(--dimmer);
             border-radius: 2px;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         #progressFill {
             height: 100%;
-            background: #fff;
+            background: var(--white);
             border-radius: 2px;
             width: 0%;
             transition: width 0.5s linear;
@@ -70,16 +243,14 @@
             position: absolute;
             top: 50%;
             transform: translate(-50%, -50%) scale(0);
-            width: 16px;
-            height: 16px;
-            background: #fff;
+            width: 14px; height: 14px;
+            background: var(--white);
             border-radius: 50%;
             transition: transform 0.2s ease, left 0.5s linear;
+            box-shadow: 0 0 8px rgba(255,255,255,0.5);
         }
 
-        #overlay.visible #progressHandle {
-            transform: translate(-50%, -50%) scale(1);
-        }
+        #overlay.visible #progressHandle { transform: translate(-50%, -50%) scale(1); }
 
         .controls-row {
             display: flex;
@@ -88,146 +259,121 @@
         }
 
         .time-display {
-            font-size: 16px;
-            color: rgba(255,255,255,0.8);
-            font-variant-numeric: tabular-nums;
-            min-width: 120px;
+            font-family: 'DM Mono', monospace;
+            font-size: 14px;
+            color: var(--dim);
+            min-width: 130px;
+            letter-spacing: 0.5px;
         }
 
+        #playStateEl {
+            font-size: 20px;
+            color: var(--dim);
+        }
+
+        /* ── Flash Indicators ───────────────────────────────────────────────── */
         .seek-indicator {
             position: fixed;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0,0,0,0.6);
-            color: #fff;
-            font-size: 22px;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            color: var(--white);
+            font-size: 18px;
             font-weight: 600;
-            padding: 18px 28px;
-            border-radius: 12px;
+            padding: 16px 28px;
+            border-radius: 14px;
             opacity: 0;
             transition: opacity 0.15s ease;
             pointer-events: none;
-            z-index: 200;
+            z-index: 30;
+            letter-spacing: 0.5px;
         }
 
-        #seekBack { left: 80px; }
-        #seekFwd  { right: 80px; }
-
+        #seekBack { left: 72px; }
+        #seekFwd  { right: 72px; }
         .seek-indicator.flash { opacity: 1; }
 
         #playFlash {
             position: fixed;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 72px;
-            color: #fff;
+            font-size: 64px;
+            color: var(--white);
             opacity: 0;
             pointer-events: none;
-            z-index: 200;
+            z-index: 30;
             transition: opacity 0.15s ease;
-            text-shadow: 0 4px 24px rgba(0,0,0,0.8);
+            text-shadow: 0 4px 32px rgba(0,0,0,0.9);
+            filter: drop-shadow(0 0 16px rgba(255,255,255,0.3));
         }
 
         #playFlash.flash { opacity: 1; }
 
-        /* Waiting screen */
-        #waitingScreen {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 300;
-            gap: 16px;
-        }
-
-        #waitingScreen h1 {
-            font-size: 42px;
-            color: #fff;
-            font-weight: 300;
-            letter-spacing: 6px;
-            margin-bottom: 8px;
-        }
-
-        #waitingScreen .label {
-            font-size: 15px;
-            color: rgba(255,255,255,0.4);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        #localIp {
-            font-size: 52px;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: 4px;
-            margin: 8px 0;
-        }
-
-        #statusMsg {
-            font-size: 15px;
-            color: rgba(255,255,255,0.4);
-            margin-top: 8px;
-        }
-
-        .dot-loader {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .dot-loader span {
-            width: 8px;
-            height: 8px;
-            background: rgba(255,255,255,0.4);
-            border-radius: 50%;
-            animation: dotPulse 1.4s ease-in-out infinite;
-        }
-
-        .dot-loader span:nth-child(2) { animation-delay: 0.2s; }
-        .dot-loader span:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes dotPulse {
-            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-            40% { transform: scale(1); opacity: 1; }
-        }
-
+        /* ── Toast ──────────────────────────────────────────────────────────── */
         #toast {
             position: fixed;
-            top: 40px;
+            top: 36px;
             left: 50%;
-            transform: translateX(-50%) translateY(-80px);
-            background: rgba(255,255,255,0.12);
-            backdrop-filter: blur(12px);
-            color: #fff;
-            padding: 12px 28px;
+            transform: translateX(-50%) translateY(-72px);
+            background: rgba(20,20,20,0.85);
+            backdrop-filter: blur(16px);
+            color: var(--white);
+            padding: 11px 26px;
             border-radius: 40px;
-            font-size: 15px;
-            transition: transform 0.4s ease;
-            z-index: 400;
-            border: 1px solid rgba(255,255,255,0.15);
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+            z-index: 60;
+            border: 1px solid var(--glass-border);
             white-space: nowrap;
         }
 
         #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* ── Connected accent bar ───────────────────────────────────────────── */
+        #connectedBar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.6s cubic-bezier(.4,0,.2,1);
+            z-index: 40;
+        }
+
+        #connectedBar.show { transform: scaleX(1); }
     </style>
 </head>
 <body>
 
+    <!-- Waiting Screen -->
     <div id="waitingScreen">
-        <h1>CASTFLOW</h1>
-        <p class="label">Connect using this IP</p>
-        <div id="localIp">...</div>
-        <p class="label">Enter in the CastFlow extension</p>
-        <div id="statusMsg">Waiting for connection</div>
-        <div class="dot-loader">
-            <span></span><span></span><span></span>
+        <p class="wt-logo">CastFlow</p>
+
+        <div class="wt-card">
+            <p class="wt-label">Connect using this IP</p>
+            <div id="localIp">···</div>
+            <p class="wt-sublabel">Enter in the CastFlow extension</p>
+
+            <div class="wt-divider"></div>
+
+            <div id="statusMsg">Connecting to server…</div>
+            <div class="dot-loader"><span></span><span></span><span></span></div>
+
+            <!-- Manual override if IP is wrong -->
+            <div class="wt-manual">
+                <input id="manualIpInput" type="text" placeholder="Override IP…" spellcheck="false">
+                <button id="manualIpBtn">Use</button>
+            </div>
+            <p class="wt-manual-label">Manual override if IP looks wrong</p>
         </div>
     </div>
 
+    <!-- Playback UI -->
+    <div id="connectedBar"></div>
     <div id="toast"></div>
     <video id="videoEl" autoplay playsinline></video>
     <div id="playFlash">▶</div>
@@ -235,7 +381,7 @@
     <div class="seek-indicator" id="seekFwd">5s ⏩</div>
 
     <div id="overlay">
-        <div id="mediaTitle">Loading...</div>
+        <div id="mediaTitle">—</div>
         <div class="progress-wrapper">
             <div id="progressFill"></div>
             <div id="progressHandle"></div>
@@ -243,81 +389,72 @@
         <div class="controls-row">
             <span class="time-display">
                 <span id="currentTimeEl">0:00</span>
-                <span style="color:rgba(255,255,255,0.4)"> / </span>
+                <span style="color:var(--dimmer)"> / </span>
                 <span id="durationEl">0:00</span>
             </span>
-            <span id="playStateEl" style="font-size:18px; color:rgba(255,255,255,0.7);">▶</span>
-            <span style="min-width:120px;"></span>
+            <span id="playStateEl">▶</span>
+            <span style="min-width:130px;"></span>
         </div>
     </div>
 
     <script>
-        // ============================================
-        // CONFIG — update with your Railway URL
-        // ============================================
-        const SIGNAL_SERVER = 'wss://your-railway-app.railway.app';
+    (() => {
+        // ── CONFIG ────────────────────────────────────────────────────────────
+        // The receiver page is served by the Node server itself, so we connect
+        // back to the same host/port dynamically — no hardcoding needed.
+        const SIGNAL_SERVER = `ws://${location.host}`;
 
-        // ============================================
-        // STATE
-        // ============================================
+        // ── STATE ─────────────────────────────────────────────────────────────
         const state = {
-            localIp: null,
             ws: null,
             pc: null,
             hideTimer: null,
-            overlayVisible: false
+            overlayVisible: false,
+            displayIp: null,      // what we show the user
         };
 
-        // ============================================
-        // ELEMENTS
-        // ============================================
-        const videoEl       = document.getElementById('videoEl');
-        const overlay       = document.getElementById('overlay');
-        const waitingScreen = document.getElementById('waitingScreen');
-        const localIpEl     = document.getElementById('localIp');
-        const statusMsg     = document.getElementById('statusMsg');
-        const mediaTitle    = document.getElementById('mediaTitle');
-        const progressFill  = document.getElementById('progressFill');
-        const progressHandle= document.getElementById('progressHandle');
-        const currentTimeEl = document.getElementById('currentTimeEl');
-        const durationEl    = document.getElementById('durationEl');
-        const playStateEl   = document.getElementById('playStateEl');
-        const playFlash     = document.getElementById('playFlash');
-        const seekBack      = document.getElementById('seekBack');
-        const seekFwd       = document.getElementById('seekFwd');
-        const toast         = document.getElementById('toast');
+        // ── ELEMENTS ──────────────────────────────────────────────────────────
+        const videoEl        = document.getElementById('videoEl');
+        const overlay        = document.getElementById('overlay');
+        const waitingScreen  = document.getElementById('waitingScreen');
+        const localIpEl      = document.getElementById('localIp');
+        const statusMsg      = document.getElementById('statusMsg');
+        const mediaTitle     = document.getElementById('mediaTitle');
+        const progressFill   = document.getElementById('progressFill');
+        const progressHandle = document.getElementById('progressHandle');
+        const currentTimeEl  = document.getElementById('currentTimeEl');
+        const durationEl     = document.getElementById('durationEl');
+        const playStateEl    = document.getElementById('playStateEl');
+        const playFlash      = document.getElementById('playFlash');
+        const seekBack       = document.getElementById('seekBack');
+        const seekFwd        = document.getElementById('seekFwd');
+        const toast          = document.getElementById('toast');
+        const connectedBar   = document.getElementById('connectedBar');
+        const manualInput    = document.getElementById('manualIpInput');
+        const manualBtn      = document.getElementById('manualIpBtn');
 
-        // ============================================
-        // GET LOCAL IP VIA WEBRTC TRICK
-        // ============================================
-        function getLocalIp() {
-            return new Promise((resolve) => {
-                const pc = new RTCPeerConnection({ iceServers: [] });
-                pc.createDataChannel('');
-                pc.createOffer().then(o => pc.setLocalDescription(o));
-                pc.onicecandidate = (e) => {
-                    if (!e.candidate) return;
-                    const match = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
-                    if (match && !match[1].startsWith('127.')) {
-                        resolve(match[1]);
-                        pc.close();
-                    }
-                };
-                // Fallback after 3s
-                setTimeout(() => resolve('unknown'), 3000);
-            });
-        }
+        // ── MANUAL IP OVERRIDE ────────────────────────────────────────────────
+        manualBtn.addEventListener('click', () => {
+            const v = manualInput.value.trim();
+            if (v) {
+                localIpEl.textContent = v;
+                state.displayIp = v;
+                showToast('📋 IP overridden to ' + v);
+            }
+        });
 
-        // ============================================
-        // WEBSOCKET + SIGNALING
-        // ============================================
-        function connectSignaling(ip) {
+        manualInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') manualBtn.click();
+        });
+
+        // ── WEBSOCKET + SIGNALING ─────────────────────────────────────────────
+        function connectSignaling() {
             state.ws = new WebSocket(SIGNAL_SERVER);
 
             state.ws.onopen = () => {
-                console.log('Connected to signaling server');
-                // Register as receiver with our local IP
-                send({ type: 'register', ip });
+                console.log('Connected to local signaling server');
+                statusMsg.textContent = 'Registering…';
+                send({ type: 'register' });
             };
 
             state.ws.onmessage = async (e) => {
@@ -325,12 +462,16 @@
                 console.log('Signal received:', msg.type);
 
                 switch (msg.type) {
+
                     case 'registered':
-                        statusMsg.textContent = 'Waiting for connection...';
+                        // Server tells us the LAN IP to display
+                        state.displayIp = msg.ip;
+                        localIpEl.textContent = msg.ip;
+                        statusMsg.textContent = 'Waiting for device…';
                         break;
 
                     case 'caster_joined':
-                        statusMsg.textContent = 'Caster connected, starting stream...';
+                        statusMsg.textContent = 'Device connected — starting stream…';
                         showToast('📱 Device connected');
                         await startWebRTC();
                         break;
@@ -341,7 +482,11 @@
 
                     case 'ice':
                         if (state.pc && msg.candidate) {
-                            await state.pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                            try {
+                                await state.pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                            } catch(err) {
+                                console.warn('ICE error:', err);
+                            }
                         }
                         break;
 
@@ -362,7 +507,7 @@
 
                     case 'seekRelative':
                         videoEl.currentTime = Math.max(0, Math.min(
-                            videoEl.duration,
+                            videoEl.duration || 0,
                             videoEl.currentTime + msg.seconds
                         ));
                         flashSeek(msg.seconds);
@@ -379,17 +524,21 @@
 
                     case 'caster_disconnected':
                         showToast('📵 Device disconnected');
+                        connectedBar.classList.remove('show');
                         break;
 
                     case 'error':
                         console.error('Signal error:', msg.message);
+                        statusMsg.textContent = 'Error: ' + msg.message;
                         break;
                 }
             };
 
             state.ws.onclose = () => {
-                console.log('Signaling disconnected, reconnecting...');
-                setTimeout(() => connectSignaling(ip), 3000);
+                console.log('Signaling disconnected — retrying in 3s…');
+                statusMsg.textContent = 'Reconnecting…';
+                localIpEl.textContent = '···';
+                setTimeout(connectSignaling, 3000);
             };
 
             state.ws.onerror = (err) => console.error('WS error:', err);
@@ -401,28 +550,32 @@
             }
         }
 
-        // ============================================
-        // WEBRTC — receive stream
-        // ============================================
+        // ── WEBRTC — receive stream ────────────────────────────────────────────
         async function startWebRTC() {
+            // Close any existing peer
+            if (state.pc) {
+                state.pc.close();
+                state.pc = null;
+            }
+
             state.pc = new RTCPeerConnection({
                 iceServers: [
+                    // Local STUN is fine since we're on LAN; no TURN needed
                     { urls: 'stun:stun.l.google.com:19302' }
                 ]
             });
 
-            // When we receive the stream, attach to video
             state.pc.ontrack = (e) => {
                 console.log('Track received:', e.track.kind);
-                if (e.streams && e.streams[0]) {
+                if (e.streams?.[0]) {
                     videoEl.srcObject = e.streams[0];
-                    videoEl.play();
+                    videoEl.play().catch(() => {});
                     waitingScreen.style.display = 'none';
+                    connectedBar.classList.add('show');
                     showToast('🎬 Stream started');
                 }
             };
 
-            // Send ICE candidates to caster via signaling
             state.pc.onicecandidate = (e) => {
                 if (e.candidate) {
                     send({ type: 'ice', candidate: e.candidate });
@@ -430,24 +583,27 @@
             };
 
             state.pc.onconnectionstatechange = () => {
-                console.log('PC state:', state.pc.connectionState);
-                if (state.pc.connectionState === 'connected') {
+                console.log('PC state:', state.pc?.connectionState);
+                if (state.pc?.connectionState === 'connected') {
                     showToast('✅ Peer connected');
+                }
+                if (state.pc?.connectionState === 'failed') {
+                    showToast('❌ Connection failed — try again');
                 }
             };
         }
 
         async function handleOffer(sdp) {
             if (!state.pc) await startWebRTC();
-            await state.pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+            await state.pc.setRemoteDescription(
+                new RTCSessionDescription({ type: 'offer', sdp })
+            );
             const answer = await state.pc.createAnswer();
             await state.pc.setLocalDescription(answer);
             send({ type: 'answer', sdp: answer.sdp });
         }
 
-        // ============================================
-        // OVERLAY
-        // ============================================
+        // ── OVERLAY ───────────────────────────────────────────────────────────
         function showOverlay() {
             overlay.classList.add('visible');
             state.overlayVisible = true;
@@ -464,9 +620,7 @@
             state.hideTimer = setTimeout(hideOverlay, 5000);
         }
 
-        // ============================================
-        // PROGRESS
-        // ============================================
+        // ── PROGRESS ──────────────────────────────────────────────────────────
         videoEl.addEventListener('timeupdate', () => {
             const pct = videoEl.duration
                 ? (videoEl.currentTime / videoEl.duration) * 100
@@ -474,15 +628,13 @@
             progressFill.style.width = pct + '%';
             progressHandle.style.left = pct + '%';
             currentTimeEl.textContent = formatTime(videoEl.currentTime);
-            durationEl.textContent = formatTime(videoEl.duration);
+            durationEl.textContent    = formatTime(videoEl.duration);
         });
 
         videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
         videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
-        // ============================================
-        // FLASH ANIMATIONS
-        // ============================================
+        // ── FLASH ANIMATIONS ──────────────────────────────────────────────────
         function flashPlayPause(icon) {
             playFlash.textContent = icon;
             playFlash.classList.add('flash');
@@ -499,86 +651,57 @@
             setTimeout(() => el.classList.remove('flash'), 600);
         }
 
-        // ============================================
-        // TV REMOTE KEYS
-        // ============================================
+        // ── TV REMOTE KEYS ────────────────────────────────────────────────────
         document.addEventListener('keydown', (e) => {
             switch (e.keyCode) {
-                case 13: // OK/Enter
-                case 32: // Space
+                case 13: case 32: // OK / Space
                     if (state.overlayVisible) {
                         videoEl.paused ? videoEl.play() : videoEl.pause();
                         flashPlayPause(videoEl.paused ? '⏸' : '▶');
                     } else {
                         showOverlay();
                     }
-                    e.preventDefault();
-                    break;
-                case 38: // D-pad up
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-                case 40: // D-pad down
-                    hideOverlay();
-                    e.preventDefault();
-                    break;
-                case 37: // D-pad left
-                case 412: // Rewind
+                    e.preventDefault(); break;
+
+                case 38: showOverlay(); e.preventDefault(); break;   // D-pad up
+                case 40: hideOverlay(); e.preventDefault(); break;   // D-pad down
+
+                case 37: case 412: // Left / Rewind
                     videoEl.currentTime = Math.max(0, videoEl.currentTime - 5);
-                    flashSeek(-5);
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-                case 39: // D-pad right
-                case 417: // Fast forward
-                    videoEl.currentTime = Math.min(videoEl.duration, videoEl.currentTime + 5);
-                    flashSeek(5);
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-                case 415: // Play
-                    videoEl.play();
-                    flashPlayPause('▶');
-                    break;
-                case 19: // Pause
-                    videoEl.pause();
-                    flashPlayPause('⏸');
-                    break;
+                    flashSeek(-5); showOverlay(); e.preventDefault(); break;
+
+                case 39: case 417: // Right / FF
+                    videoEl.currentTime = Math.min(videoEl.duration || 0, videoEl.currentTime + 5);
+                    flashSeek(5); showOverlay(); e.preventDefault(); break;
+
+                case 415: videoEl.play(); flashPlayPause('▶'); break;  // Play
+                case 19:  videoEl.pause(); flashPlayPause('⏸'); break; // Pause
             }
         });
 
-        // ============================================
-        // TOAST
-        // ============================================
+        // ── TOAST ─────────────────────────────────────────────────────────────
+        let toastTimer = null;
         function showToast(msg) {
             toast.textContent = msg;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // ============================================
-        // HELPERS
-        // ============================================
+        // ── HELPERS ───────────────────────────────────────────────────────────
         function formatTime(s) {
             if (!s || isNaN(s)) return '0:00';
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
+            const h   = Math.floor(s / 3600);
+            const m   = Math.floor((s % 3600) / 60);
             const sec = Math.floor(s % 60);
             if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
             return `${m}:${sec.toString().padStart(2,'0')}`;
         }
 
-        // ============================================
-        // INIT
-        // ============================================
-        async function init() {
-            const ip = await getLocalIp();
-            state.localIp = ip;
-            localIpEl.textContent = ip;
-            connectSignaling(ip);
-        }
+        // ── INIT ──────────────────────────────────────────────────────────────
+        connectSignaling();
 
-        init();
+    })();
     </script>
 </body>
 </html>
