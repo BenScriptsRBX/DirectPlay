@@ -254,6 +254,24 @@
             z-index: 40;
         }
         #connectedBar.show { transform: scaleX(1); }
+
+        /* Unmute button — shown if autoplay with audio is blocked */
+        #unmuteBtn {
+            position: fixed; bottom: 40px; right: 40px;
+            background: rgba(15,15,15,0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px; font-weight: 500;
+            padding: 12px 24px;
+            border-radius: 40px;
+            cursor: pointer;
+            z-index: 60;
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+        #unmuteBtn:hover { background: rgba(40,40,40,0.9); }
     </style>
 </head>
 <body>
@@ -272,7 +290,15 @@
 
     <div id="connectedBar"></div>
     <div id="toast"></div>
-    <video id="videoEl" autoplay playsinline></video>
+
+    <!--
+        CRITICAL: video must be muted for autoplay to work without a user gesture.
+        We unmute programmatically after the first interaction, or show a button.
+    -->
+    <video id="videoEl" autoplay playsinline muted></video>
+
+    <button id="unmuteBtn">🔊 Tap to enable audio</button>
+
     <div id="playFlash">▶</div>
     <div class="seek-indicator" id="seekBack">⏪ 5s</div>
     <div class="seek-indicator" id="seekFwd">5s ⏩</div>
@@ -314,14 +340,16 @@
         const seekFwd        = document.getElementById('seekFwd');
         const toast          = document.getElementById('toast');
         const connectedBar   = document.getElementById('connectedBar');
+        const unmuteBtn      = document.getElementById('unmuteBtn');
 
         const state = {
-            code: null,
-            pc: null,
-            dc: null,           // store data channel so we can send back to extension
-            pollTimer: null,
-            hideTimer: null,
-            overlayVisible: false
+            code:           null,
+            pc:             null,
+            dc:             null,
+            pollTimer:      null,
+            hideTimer:      null,
+            overlayVisible: false,
+            hasStream:      false
         };
 
         // ── Generate stable 4-letter code ─────────────────────────────────────
@@ -333,18 +361,38 @@
         }
 
         // ── Send a command back to the extension over the data channel ─────────
-        // The extension's popup.js will receive this and call sendCommand() on the tab
         function sendToExtension(data) {
             if (state.dc?.readyState === 'open') {
                 state.dc.send(JSON.stringify(data));
             }
         }
 
+        // ── Unmute handling ───────────────────────────────────────────────────
+        // Browsers block unmuted autoplay. We start muted, then try to unmute.
+        // If that also fails, we show a button the user can tap.
+        function tryUnmute() {
+            videoEl.muted = false;
+            // If play() rejects after unmuting, fall back to showing button
+            videoEl.play().then(() => {
+                unmuteBtn.style.display = 'none';
+            }).catch(() => {
+                videoEl.muted = true;
+                videoEl.play().catch(() => {});
+                unmuteBtn.style.display = 'block';
+            });
+        }
+
+        unmuteBtn.addEventListener('click', () => {
+            videoEl.muted = false;
+            videoEl.play().catch(() => {});
+            unmuteBtn.style.display = 'none';
+        });
+
         // ── Init ──────────────────────────────────────────────────────────────
         async function init() {
             state.code = sessionStorage.getItem('cf_code') || makeCode();
             sessionStorage.setItem('cf_code', state.code);
-            codeEl.textContent = state.code;
+            codeEl.textContent    = state.code;
             statusMsg.textContent = 'Waiting for device…';
 
             await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
@@ -354,7 +402,7 @@
         // ── Poll for offer ────────────────────────────────────────────────────
         async function pollForOffer() {
             try {
-                const res = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
+                const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
                 const data = await res.json();
 
                 if (data.offer) {
@@ -377,65 +425,102 @@
             state.pc = new RTCPeerConnection({
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
                 ]
             });
 
-            // Store data channel reference so keyboard handler can send back
+            // Data channel — receives control messages FROM extension
             state.pc.ondatachannel = (e) => {
                 state.dc = e.channel;
-                console.log('Data channel received:', state.dc.label);
-
-                state.dc.onopen    = () => console.log('Data channel open on receiver');
+                state.dc.onopen    = () => console.log('[receiver] dc open');
                 state.dc.onmessage = (ev) => {
                     try { handleRemoteControl(JSON.parse(ev.data)); }
-                    catch (err) { console.error('DC message parse error:', err); }
+                    catch (err) { console.error('[receiver] dc parse error:', err); }
                 };
-                state.dc.onerror = (err) => console.error('DC error:', err);
+                state.dc.onerror = (err) => console.error('[receiver] dc error:', err);
             };
 
-            state.pc.ontrack = (e) => {
-                console.log('Track received:', e.track.kind);
-                if (e.streams?.[0]) {
-                    videoEl.srcObject = e.streams[0];
-                    videoEl.play().catch(() => {});
-                    waitingScreen.style.display = 'none';
-                    connectedBar.classList.add('show');
-                    showToast('🎬 Stream started');
-                }
-            };
-
-            state.pc.onconnectionstatechange = () => {
-                console.log('PC state:', state.pc?.connectionState);
-                if (state.pc?.connectionState === 'disconnected' ||
-                    state.pc?.connectionState === 'failed') {
-                    showToast('📵 Device disconnected');
-                    connectedBar.classList.remove('show');
-                    waitingScreen.style.display = 'flex';
-                    statusMsg.textContent = 'Waiting for device…';
-                    videoEl.srcObject = null;
-                    state.pc = null;
-                    state.dc = null;
-                    fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-                    pollForOffer();
-                }
-            };
-
-            await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
-
-            for (const c of iceCandidates) {
-                await state.pc.addIceCandidate(c).catch(() => {});
-            }
-
-            const answer = await state.pc.createAnswer();
-            await state.pc.setLocalDescription(answer);
-
+            // Collect receiver ICE candidates BEFORE setLocalDescription
             const receiverCandidates = [];
             state.pc.onicecandidate = (e) => {
                 if (e.candidate) receiverCandidates.push(e.candidate);
             };
 
-            await new Promise((resolve) => {
+            // ontrack — this is where video actually arrives
+            state.pc.ontrack = (e) => {
+                console.log('[receiver] track received:', e.track.kind, e.streams.length);
+
+                const stream = e.streams?.[0];
+                if (!stream) return;
+
+                // Assign stream — video is already muted so play() will succeed
+                videoEl.srcObject = stream;
+
+                videoEl.play().then(() => {
+                    console.log('[receiver] play() succeeded (muted)');
+                    // Now try to unmute — browsers allow this shortly after muted play starts
+                    setTimeout(tryUnmute, 300);
+                }).catch(err => {
+                    console.warn('[receiver] play() failed:', err);
+                    // Last resort: show unmute button
+                    unmuteBtn.style.display = 'block';
+                });
+
+                waitingScreen.style.display = 'none';
+                connectedBar.classList.add('show');
+                state.hasStream = true;
+                showToast('🎬 Stream started');
+            };
+
+            state.pc.onconnectionstatechange = () => {
+                const cs = state.pc?.connectionState;
+                console.log('[receiver] pc state:', cs);
+
+                if (cs === 'disconnected' || cs === 'failed') {
+                    showToast('📵 Device disconnected');
+                    connectedBar.classList.remove('show');
+                    waitingScreen.style.display = 'flex';
+                    statusMsg.textContent = 'Waiting for device…';
+                    videoEl.srcObject = null;
+                    state.pc  = null;
+                    state.dc  = null;
+                    state.hasStream = false;
+                    unmuteBtn.style.display = 'none';
+                    fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+                    pollForOffer();
+                }
+            };
+
+            // 1. Set remote description first
+            await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
+
+            // 2. Add caster's ICE candidates
+            for (const c of iceCandidates) {
+                await state.pc.addIceCandidate(c).catch(() => {});
+            }
+
+            // 3. Create and set answer — onicecandidate fires after this
+            const answer = await state.pc.createAnswer();
+            await state.pc.setLocalDescription(answer);
+
+            // 4. Wait for ICE gathering — short timeout to keep it snappy
+            await waitForICE(2000);
+
+            // 5. Post answer + our ICE candidates to signalling server
+            await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    answer: state.pc.localDescription.sdp,
+                    ice:    receiverCandidates
+                })
+            });
+
+            statusMsg.textContent = 'Connected!';
+        }
+
+        function waitForICE(timeoutMs) {
+            return new Promise((resolve) => {
                 if (state.pc.iceGatheringState === 'complete') { resolve(); return; }
                 const check = () => {
                     if (state.pc.iceGatheringState === 'complete') {
@@ -444,24 +529,15 @@
                     }
                 };
                 state.pc.addEventListener('icegatheringstatechange', check);
-                setTimeout(resolve, 4000);
+                setTimeout(() => {
+                    state.pc.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }, timeoutMs);
             });
-
-            await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    answer: state.pc.localDescription.sdp,
-                    ice: receiverCandidates
-                })
-            });
-
-            statusMsg.textContent = 'Connected!';
         }
 
         // ── Remote control messages FROM extension → update receiver UI ────────
         function handleRemoteControl(msg) {
-            console.log('Remote control:', msg.type);
             switch (msg.type) {
                 case 'togglePlayPause':
                     if (videoEl.paused) { videoEl.play(); flashPlayPause('▶'); }
@@ -480,15 +556,13 @@
                     ));
                     flashSeek(msg.seconds); showOverlay(); break;
                 case 'volume':
-                    videoEl.volume = msg.volume; break;
+                    videoEl.volume = Math.max(0, Math.min(1, msg.volume)); break;
                 case 'metadata':
                     mediaTitle.textContent = msg.title; break;
             }
         }
 
-        // ── Keyboard shortcuts — send back through data channel to extension ───
-        // The extension receives these and calls sendCommand() on the source tab,
-        // which triggers the site's own native keyboard handlers via simulateKey()
+        // ── Keyboard shortcuts ────────────────────────────────────────────────
         document.addEventListener('keydown', e => {
             switch (e.key) {
                 case ' ':
@@ -498,27 +572,21 @@
                     showOverlay();
                     e.preventDefault();
                     break;
-
                 case 'ArrowLeft':
                     sendToExtension({ type: 'seekRelative', seconds: -5 });
-                    flashSeek(-5);
-                    showOverlay();
+                    flashSeek(-5); showOverlay();
                     e.preventDefault();
                     break;
-
                 case 'ArrowRight':
                     sendToExtension({ type: 'seekRelative', seconds: 5 });
-                    flashSeek(5);
-                    showOverlay();
+                    flashSeek(5); showOverlay();
                     e.preventDefault();
                     break;
-
                 case 'ArrowUp':
                     sendToExtension({ type: 'volumeUp' });
                     showOverlay();
                     e.preventDefault();
                     break;
-
                 case 'ArrowDown':
                     sendToExtension({ type: 'volumeDown' });
                     showOverlay();
@@ -539,8 +607,9 @@
         }
 
         videoEl.addEventListener('timeupdate', () => {
-            const pct = videoEl.duration ? (videoEl.currentTime / videoEl.duration) * 100 : 0;
-            progressFill.style.width = pct + '%';
+            const pct = videoEl.duration
+                ? (videoEl.currentTime / videoEl.duration) * 100 : 0;
+            progressFill.style.width  = pct + '%';
             progressHandle.style.left = pct + '%';
             currentTimeEl.textContent = formatTime(videoEl.currentTime);
             durationEl.textContent    = formatTime(videoEl.duration);
@@ -557,7 +626,9 @@
 
         function flashSeek(seconds) {
             const el = seconds < 0 ? seekBack : seekFwd;
-            el.textContent = seconds < 0 ? `⏪ ${Math.abs(seconds)}s` : `${seconds}s ⏩`;
+            el.textContent = seconds < 0
+                ? `⏪ ${Math.abs(seconds)}s`
+                : `${seconds}s ⏩`;
             el.classList.add('flash');
             setTimeout(() => el.classList.remove('flash'), 600);
         }
@@ -572,7 +643,9 @@
 
         function formatTime(s) {
             if (!s || isNaN(s)) return '0:00';
-            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+            const h   = Math.floor(s / 3600);
+            const m   = Math.floor((s % 3600) / 60);
+            const sec = Math.floor(s % 60);
             if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
             return `${m}:${sec.toString().padStart(2,'0')}`;
         }
