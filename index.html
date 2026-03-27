@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CastFlow Receiver</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -17,7 +16,6 @@
             --glass: rgba(255,255,255,0.06);
             --glass-border: rgba(255,255,255,0.11);
             --accent: #e8ff47;
-            --red: #ff5c5c;
         }
 
         html, body {
@@ -34,11 +32,9 @@
             width: 100%; height: 100%;
             object-fit: contain;
             background: #000;
-            display: block;
             z-index: 0;
         }
 
-        /* ── Waiting Screen ── */
         #waitingScreen {
             position: fixed; inset: 0;
             background: #000;
@@ -91,15 +87,14 @@
             margin-bottom: 8px;
         }
 
-        #peerId {
+        #codeEl {
             font-family: 'DM Mono', monospace;
-            font-size: 52px;
+            font-size: 64px;
             font-weight: 500;
             color: var(--white);
-            letter-spacing: 4px;
+            letter-spacing: 8px;
             line-height: 1;
             margin-bottom: 10px;
-            text-align: center;
         }
 
         .wt-sublabel {
@@ -140,7 +135,6 @@
             40% { transform:scale(1); opacity:1; }
         }
 
-        /* ── Playback Overlay ── */
         #overlay {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -161,7 +155,6 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            letter-spacing: -0.3px;
         }
 
         .progress-wrapper {
@@ -187,7 +180,6 @@
             background: var(--white);
             border-radius: 50%;
             transition: transform 0.2s ease, left 0.5s linear;
-            box-shadow: 0 0 8px rgba(255,255,255,0.5);
         }
 
         #overlay.visible #progressHandle { transform: translate(-50%,-50%) scale(1); }
@@ -203,12 +195,10 @@
             font-size: 14px;
             color: var(--dim);
             min-width: 130px;
-            letter-spacing: 0.5px;
         }
 
         #playStateEl { font-size: 20px; color: var(--dim); }
 
-        /* ── Seek flash ── */
         .seek-indicator {
             position: fixed; top: 50%;
             transform: translateY(-50%);
@@ -238,7 +228,6 @@
         }
         #playFlash.flash { opacity: 1; }
 
-        /* ── Toast ── */
         #toast {
             position: fixed; top: 36px; left: 50%;
             transform: translateX(-50%) translateY(-72px);
@@ -273,10 +262,10 @@
         <p class="wt-logo">CastFlow</p>
         <div class="wt-card">
             <p class="wt-label">Your code</p>
-            <div id="peerId">····</div>
+            <div id="codeEl">····</div>
             <p class="wt-sublabel">Enter in the CastFlow extension</p>
             <div class="wt-divider"></div>
-            <div id="statusMsg">Connecting…</div>
+            <div id="statusMsg">Starting…</div>
             <div class="dot-loader"><span></span><span></span><span></span></div>
         </div>
     </div>
@@ -307,7 +296,9 @@
 
     <script>
     (() => {
-        const peerIdEl      = document.getElementById('peerId');
+        const SIGNAL = '/api/signal';
+
+        const codeEl        = document.getElementById('codeEl');
         const statusMsg     = document.getElementById('statusMsg');
         const waitingScreen = document.getElementById('waitingScreen');
         const videoEl       = document.getElementById('videoEl');
@@ -324,121 +315,134 @@
         const toast         = document.getElementById('toast');
         const connectedBar  = document.getElementById('connectedBar');
 
-        const state = { hideTimer: null, overlayVisible: false };
+        const state = { code: null, pc: null, dc: null, pollTimer: null, hideTimer: null, overlayVisible: false };
 
-        // ── PEERJS ────────────────────────────────────────────────────────────
-        // Generate a short memorable 4-char code, stable per browser session
-        function getOrCreateCode() {
-            let code = sessionStorage.getItem('cf_peer_id');
-            if (!code) {
-                // 4 uppercase letters, easy to type
-                code = Array.from({ length: 4 }, () =>
-                    'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]
-                ).join('');
-                sessionStorage.setItem('cf_peer_id', code);
-            }
-            return code;
+        // ── Generate 4-letter code ────────────────────────────────────────────
+        function makeCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
         }
 
-        function init() {
-            const code = getOrCreateCode();
-            peerIdEl.textContent = code;
+        // ── Start receiver ────────────────────────────────────────────────────
+        async function init() {
+            state.code = sessionStorage.getItem('cf_code') || makeCode();
+            sessionStorage.setItem('cf_code', state.code);
+            codeEl.textContent = state.code;
             statusMsg.textContent = 'Waiting for device…';
 
-            const peer = new Peer('castflow-' + code, {
-                host: '0.peerjs.com', port: 443, secure: true,
-                debug: 0,
-            });
+            // Clear any stale room
+            await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
 
-            peer.on('open', (id) => {
-                console.log('Peer ready:', id);
-                statusMsg.textContent = 'Waiting for device…';
-            });
+            pollForOffer();
+        }
 
-            peer.on('error', (err) => {
-                console.error('Peer error:', err);
-                if (err.type === 'unavailable-id') {
-                    // Code taken — generate a new one
-                    sessionStorage.removeItem('cf_peer_id');
-                    peer.destroy();
-                    init();
-                } else {
-                    statusMsg.textContent = 'Reconnecting…';
-                    setTimeout(init, 3000);
+        // ── Poll for offer from caster ────────────────────────────────────────
+        async function pollForOffer() {
+            try {
+                const res = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
+                const data = await res.json();
+
+                if (data.offer) {
+                    statusMsg.textContent = 'Device found — connecting…';
+                    await handleOffer(data.offer, data.ice_caster || []);
+                    return; // Stop polling once we have an offer
                 }
+            } catch (e) {
+                console.warn('Poll error:', e);
+            }
+
+            state.pollTimer = setTimeout(pollForOffer, 1500);
+        }
+
+        // ── Handle incoming offer ─────────────────────────────────────────────
+        async function handleOffer(offer, iceCandidates) {
+            state.pc = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
             });
 
-            peer.on('disconnected', () => {
-                statusMsg.textContent = 'Reconnecting…';
-                peer.reconnect();
-            });
+            const iceBuffer = [];
 
-            // ── Incoming media call (video stream) ───────────────────────────
-            peer.on('call', (call) => {
-                showToast('📱 Device connected');
-                statusMsg.textContent = 'Starting stream…';
-                call.answer(); // no local stream — we're receiver only
-
-                call.on('stream', (remoteStream) => {
-                    videoEl.srcObject = remoteStream;
+            state.pc.ontrack = (e) => {
+                if (e.streams?.[0]) {
+                    videoEl.srcObject = e.streams[0];
                     videoEl.play().catch(() => {});
                     waitingScreen.style.display = 'none';
                     connectedBar.classList.add('show');
                     showToast('🎬 Stream started');
-                });
+                }
+            };
 
-                call.on('close', () => {
+            // Data channel for remote control
+            state.pc.ondatachannel = (e) => {
+                state.dc = e.channel;
+                state.dc.onmessage = (ev) => handleRemoteControl(JSON.parse(ev.data));
+            };
+
+            state.pc.onconnectionstatechange = () => {
+                if (state.pc.connectionState === 'disconnected' || state.pc.connectionState === 'failed') {
                     showToast('📵 Device disconnected');
                     connectedBar.classList.remove('show');
                     waitingScreen.style.display = 'flex';
                     statusMsg.textContent = 'Waiting for device…';
                     videoEl.srcObject = null;
-                });
+                    state.pc = null;
+                    // Clear room and wait for new offer
+                    fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+                    pollForOffer();
+                }
+            };
 
-                call.on('error', (err) => {
-                    console.error('Call error:', err);
-                    showToast('❌ Stream error');
-                });
+            await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
+
+            // Add buffered ICE candidates from caster
+            for (const c of iceCandidates) {
+                await state.pc.addIceCandidate(c).catch(() => {});
+            }
+
+            // Gather our ICE candidates then send answer
+            const answer = await state.pc.createAnswer();
+            await state.pc.setLocalDescription(answer);
+
+            // Wait for ICE gathering to complete
+            await new Promise((resolve) => {
+                if (state.pc.iceGatheringState === 'complete') { resolve(); return; }
+                state.pc.onicegatheringstatechange = () => {
+                    if (state.pc.iceGatheringState === 'complete') resolve();
+                };
+                setTimeout(resolve, 3000); // Max 3s wait
             });
 
-            // ── Incoming data connection (remote control) ────────────────────
-            peer.on('connection', (conn) => {
-                conn.on('data', (msg) => {
-                    switch (msg.type) {
-                        case 'play':
-                            videoEl.play();
-                            flashPlayPause('▶');
-                            break;
-                        case 'pause':
-                            videoEl.pause();
-                            flashPlayPause('⏸');
-                            break;
-                        case 'seek':
-                            videoEl.currentTime = msg.time;
-                            showOverlay();
-                            break;
-                        case 'seekRelative':
-                            videoEl.currentTime = Math.max(0, Math.min(
-                                videoEl.duration || 0,
-                                videoEl.currentTime + msg.seconds
-                            ));
-                            flashSeek(msg.seconds);
-                            showOverlay();
-                            break;
-                        case 'volume':
-                            videoEl.volume = msg.volume;
-                            break;
-                        case 'metadata':
-                            mediaTitle.textContent = msg.title;
-                            break;
-                    }
-                });
+            // Post answer + our ICE candidates
+            const candidates = [];
+            state.pc.onicecandidate = (e) => { if (e.candidate) candidates.push(e.candidate); };
+
+            await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    answer: state.pc.localDescription.sdp,
+                    ice: candidates
+                })
             });
+
+            statusMsg.textContent = 'Connected!';
         }
 
-        init();
+        // ── Remote control via data channel ───────────────────────────────────
+        function handleRemoteControl(msg) {
+            switch (msg.type) {
+                case 'play':        videoEl.play(); flashPlayPause('▶'); break;
+                case 'pause':       videoEl.pause(); flashPlayPause('⏸'); break;
+                case 'seek':        videoEl.currentTime = msg.time; showOverlay(); break;
+                case 'seekRelative':
+                    videoEl.currentTime = Math.max(0, Math.min(videoEl.duration || 0, videoEl.currentTime + msg.seconds));
+                    flashSeek(msg.seconds); showOverlay(); break;
+                case 'volume':      videoEl.volume = msg.volume; break;
+                case 'metadata':    mediaTitle.textContent = msg.title; break;
+            }
+        }
 
-        // ── OVERLAY ───────────────────────────────────────────────────────────
+        // ── Overlay ───────────────────────────────────────────────────────────
         function showOverlay() {
             overlay.classList.add('visible');
             state.overlayVisible = true;
@@ -465,7 +469,6 @@
         videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
         videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
-        // ── FLASH ─────────────────────────────────────────────────────────────
         function flashPlayPause(icon) {
             playFlash.textContent = icon;
             playFlash.classList.add('flash');
@@ -480,14 +483,12 @@
             setTimeout(() => el.classList.remove('flash'), 600);
         }
 
-        // ── TV REMOTE ─────────────────────────────────────────────────────────
+        // ── TV remote keys ────────────────────────────────────────────────────
         document.addEventListener('keydown', e => {
             switch (e.keyCode) {
                 case 13: case 32:
-                    if (state.overlayVisible) {
-                        videoEl.paused ? videoEl.play() : videoEl.pause();
-                        flashPlayPause(videoEl.paused ? '⏸' : '▶');
-                    } else { showOverlay(); }
+                    if (state.overlayVisible) { videoEl.paused ? videoEl.play() : videoEl.pause(); flashPlayPause(videoEl.paused ? '⏸' : '▶'); }
+                    else showOverlay();
                     e.preventDefault(); break;
                 case 38: showOverlay(); e.preventDefault(); break;
                 case 40: hideOverlay(); e.preventDefault(); break;
@@ -502,8 +503,8 @@
             }
         });
 
-        // ── TOAST ─────────────────────────────────────────────────────────────
-        let toastTimer = null;
+        // ── Toast ─────────────────────────────────────────────────────────────
+        let toastTimer;
         function showToast(msg) {
             toast.textContent = msg;
             toast.classList.add('show');
@@ -518,6 +519,7 @@
             return `${m}:${sec.toString().padStart(2,'0')}`;
         }
 
+        init();
     })();
     </script>
 </body>
