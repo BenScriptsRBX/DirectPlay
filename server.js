@@ -20,9 +20,9 @@ function getLocalIp() {
 const LOCAL_IP = getLocalIp();
 const PORT = process.env.PORT || 3000;
 
-// ── HTTP server — serves receiver.html ────────────────────────────────────────
+// ── HTTP server — serves index.html ────────────────────────────────────────
 const server = http.createServer((req, res) => {
-    const filePath = path.join(__dirname, 'receiver.html');
+    const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
         if (err) {
             res.writeHead(404);
@@ -44,7 +44,6 @@ wss.on('connection', (ws, req) => {
     let token = null;
     let role = null;
 
-    // Detect the real client IP (works behind proxies too)
     const clientIp =
         (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
         req.socket.remoteAddress ||
@@ -52,10 +51,17 @@ wss.on('connection', (ws, req) => {
 
     console.log(`New connection from ${clientIp}`);
 
+    // Keep connection alive — reply to pings
     ws.on('message', (raw) => {
         let msg;
         try { msg = JSON.parse(raw); }
         catch (e) { console.error('Invalid JSON:', raw); return; }
+
+        // Keepalive
+        if (msg.type === 'ping') {
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+        }
 
         switch (msg.type) {
 
