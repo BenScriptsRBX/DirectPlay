@@ -410,7 +410,10 @@
             pc: null,
             hideTimer: null,
             overlayVisible: false,
-            displayIp: null,      // what we show the user
+            displayIp: null,
+            registered: false,    // true once we have a confirmed IP
+            reconnectDelay: 1000, // ms, doubles on each failure
+            pingTimer: null,
         };
 
         // ── ELEMENTS ──────────────────────────────────────────────────────────
@@ -449,12 +452,26 @@
 
         // ── WEBSOCKET + SIGNALING ─────────────────────────────────────────────
         function connectSignaling() {
+            // Don't stack connections
+            if (state.ws && state.ws.readyState === WebSocket.CONNECTING) return;
+
             state.ws = new WebSocket(SIGNAL_SERVER);
 
             state.ws.onopen = () => {
                 console.log('Connected to local signaling server');
-                statusMsg.textContent = 'Registering…';
+                state.reconnectDelay = 1000; // reset backoff on success
+                statusMsg.textContent = state.registered ? 'Waiting for device…' : 'Registering…';
+
+                // Send register every time we (re)connect
                 send({ type: 'register' });
+
+                // Keepalive ping every 20s to prevent idle disconnection
+                clearInterval(state.pingTimer);
+                state.pingTimer = setInterval(() => {
+                    if (state.ws?.readyState === WebSocket.OPEN) {
+                        state.ws.send(JSON.stringify({ type: 'ping' }));
+                    }
+                }, 20000);
             };
 
             state.ws.onmessage = async (e) => {
@@ -464,10 +481,14 @@
                 switch (msg.type) {
 
                     case 'registered':
-                        // Server tells us the LAN IP to display
+                        state.registered = true;
                         state.displayIp = msg.ip;
                         localIpEl.textContent = msg.ip;
                         statusMsg.textContent = 'Waiting for device…';
+                        break;
+
+                    case 'pong':
+                        // keepalive acknowledged — do nothing
                         break;
 
                     case 'caster_joined':
@@ -535,10 +556,18 @@
             };
 
             state.ws.onclose = () => {
-                console.log('Signaling disconnected — retrying in 3s…');
-                statusMsg.textContent = 'Reconnecting…';
-                localIpEl.textContent = '···';
-                setTimeout(connectSignaling, 3000);
+                clearInterval(state.pingTimer);
+                console.log(`Signaling disconnected — retrying in ${state.reconnectDelay}ms…`);
+                // Only blank the IP if we never successfully registered
+                if (!state.registered) {
+                    localIpEl.textContent = '···';
+                    statusMsg.textContent = 'Reconnecting…';
+                } else {
+                    statusMsg.textContent = 'Reconnecting…';
+                    // Keep showing the IP — it hasn't changed
+                }
+                setTimeout(connectSignaling, state.reconnectDelay);
+                state.reconnectDelay = Math.min(state.reconnectDelay * 2, 15000);
             };
 
             state.ws.onerror = (err) => console.error('WS error:', err);
