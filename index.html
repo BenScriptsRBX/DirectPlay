@@ -298,54 +298,63 @@
     (() => {
         const SIGNAL = '/api/signal';
 
-        const codeEl        = document.getElementById('codeEl');
-        const statusMsg     = document.getElementById('statusMsg');
-        const waitingScreen = document.getElementById('waitingScreen');
-        const videoEl       = document.getElementById('videoEl');
-        const overlay       = document.getElementById('overlay');
-        const mediaTitle    = document.getElementById('mediaTitle');
-        const progressFill  = document.getElementById('progressFill');
-        const progressHandle= document.getElementById('progressHandle');
-        const currentTimeEl = document.getElementById('currentTimeEl');
-        const durationEl    = document.getElementById('durationEl');
-        const playStateEl   = document.getElementById('playStateEl');
-        const playFlash     = document.getElementById('playFlash');
-        const seekBack      = document.getElementById('seekBack');
-        const seekFwd       = document.getElementById('seekFwd');
-        const toast         = document.getElementById('toast');
-        const connectedBar  = document.getElementById('connectedBar');
+        const codeEl         = document.getElementById('codeEl');
+        const statusMsg      = document.getElementById('statusMsg');
+        const waitingScreen  = document.getElementById('waitingScreen');
+        const videoEl        = document.getElementById('videoEl');
+        const overlay        = document.getElementById('overlay');
+        const mediaTitle     = document.getElementById('mediaTitle');
+        const progressFill   = document.getElementById('progressFill');
+        const progressHandle = document.getElementById('progressHandle');
+        const currentTimeEl  = document.getElementById('currentTimeEl');
+        const durationEl     = document.getElementById('durationEl');
+        const playStateEl    = document.getElementById('playStateEl');
+        const playFlash      = document.getElementById('playFlash');
+        const seekBack       = document.getElementById('seekBack');
+        const seekFwd        = document.getElementById('seekFwd');
+        const toast          = document.getElementById('toast');
+        const connectedBar   = document.getElementById('connectedBar');
 
-        const state = { code: null, pc: null, dc: null, pollTimer: null, hideTimer: null, overlayVisible: false };
+        const state = {
+            code: null,
+            pc: null,
+            pollTimer: null,
+            hideTimer: null,
+            overlayVisible: false
+        };
 
-        // ── Generate 4-letter code ────────────────────────────────────────────
+        // ── Generate stable 4-letter code ─────────────────────────────────────
         function makeCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-            return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            return Array.from({ length: 4 }, () =>
+                chars[Math.floor(Math.random() * chars.length)]
+            ).join('');
         }
 
-        // ── Start receiver ────────────────────────────────────────────────────
+        // ── Init ──────────────────────────────────────────────────────────────
         async function init() {
             state.code = sessionStorage.getItem('cf_code') || makeCode();
             sessionStorage.setItem('cf_code', state.code);
             codeEl.textContent = state.code;
             statusMsg.textContent = 'Waiting for device…';
 
-            // Clear any stale room
+            // Clear any stale room data
             await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
 
             pollForOffer();
         }
 
-        // ── Poll for offer from caster ────────────────────────────────────────
+        // ── Poll for offer ────────────────────────────────────────────────────
         async function pollForOffer() {
             try {
                 const res = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
                 const data = await res.json();
 
                 if (data.offer) {
+                    clearTimeout(state.pollTimer);
                     statusMsg.textContent = 'Device found — connecting…';
                     await handleOffer(data.offer, data.ice_caster || []);
-                    return; // Stop polling once we have an offer
+                    return;
                 }
             } catch (e) {
                 console.warn('Poll error:', e);
@@ -354,15 +363,37 @@
             state.pollTimer = setTimeout(pollForOffer, 1500);
         }
 
-        // ── Handle incoming offer ─────────────────────────────────────────────
+        // ── Handle offer from caster ──────────────────────────────────────────
         async function handleOffer(offer, iceCandidates) {
+            // Clean up any existing connection
+            if (state.pc) { state.pc.close(); state.pc = null; }
+
             state.pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                ]
             });
 
-            const iceBuffer = [];
+            // ── Data channel — MUST be set up before setRemoteDescription ─────
+            state.pc.ondatachannel = (e) => {
+                const channel = e.channel;
+                console.log('Data channel received:', channel.label);
 
+                channel.onopen = () => console.log('Data channel open on receiver');
+                channel.onmessage = (ev) => {
+                    try {
+                        handleRemoteControl(JSON.parse(ev.data));
+                    } catch (err) {
+                        console.error('DC message parse error:', err);
+                    }
+                };
+                channel.onerror = (err) => console.error('DC error:', err);
+            };
+
+            // ── Track handler ─────────────────────────────────────────────────
             state.pc.ontrack = (e) => {
+                console.log('Track received:', e.track.kind);
                 if (e.streams?.[0]) {
                     videoEl.srcObject = e.streams[0];
                     videoEl.play().catch(() => {});
@@ -372,73 +403,95 @@
                 }
             };
 
-            // Data channel for remote control
-            state.pc.ondatachannel = (e) => {
-                state.dc = e.channel;
-                state.dc.onmessage = (ev) => handleRemoteControl(JSON.parse(ev.data));
-            };
-
             state.pc.onconnectionstatechange = () => {
-                if (state.pc.connectionState === 'disconnected' || state.pc.connectionState === 'failed') {
+                console.log('PC state:', state.pc?.connectionState);
+                if (state.pc?.connectionState === 'disconnected' ||
+                    state.pc?.connectionState === 'failed') {
                     showToast('📵 Device disconnected');
                     connectedBar.classList.remove('show');
                     waitingScreen.style.display = 'flex';
                     statusMsg.textContent = 'Waiting for device…';
                     videoEl.srcObject = null;
                     state.pc = null;
-                    // Clear room and wait for new offer
+                    // Clear room and wait for fresh connection
                     fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
                     pollForOffer();
                 }
             };
 
+            // ── Set remote description (offer) ────────────────────────────────
             await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
 
-            // Add buffered ICE candidates from caster
+            // ── Add caster's ICE candidates ───────────────────────────────────
             for (const c of iceCandidates) {
                 await state.pc.addIceCandidate(c).catch(() => {});
             }
 
-            // Gather our ICE candidates then send answer
+            // ── Create answer ─────────────────────────────────────────────────
             const answer = await state.pc.createAnswer();
             await state.pc.setLocalDescription(answer);
 
-            // Wait for ICE gathering to complete
+            // ── Wait for ICE gathering ────────────────────────────────────────
+            const receiverCandidates = [];
+            state.pc.onicecandidate = (e) => {
+                if (e.candidate) receiverCandidates.push(e.candidate);
+            };
+
             await new Promise((resolve) => {
                 if (state.pc.iceGatheringState === 'complete') { resolve(); return; }
-                state.pc.onicegatheringstatechange = () => {
-                    if (state.pc.iceGatheringState === 'complete') resolve();
+                const check = () => {
+                    if (state.pc.iceGatheringState === 'complete') {
+                        state.pc.removeEventListener('icegatheringstatechange', check);
+                        resolve();
+                    }
                 };
-                setTimeout(resolve, 3000); // Max 3s wait
+                state.pc.addEventListener('icegatheringstatechange', check);
+                setTimeout(resolve, 4000); // max wait
             });
 
-            // Post answer + our ICE candidates
-            const candidates = [];
-            state.pc.onicecandidate = (e) => { if (e.candidate) candidates.push(e.candidate); };
-
+            // ── Post answer to signaling API ──────────────────────────────────
             await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     answer: state.pc.localDescription.sdp,
-                    ice: candidates
+                    ice: receiverCandidates
                 })
             });
 
             statusMsg.textContent = 'Connected!';
         }
 
-        // ── Remote control via data channel ───────────────────────────────────
+        // ── Remote control messages from extension ────────────────────────────
         function handleRemoteControl(msg) {
+            console.log('Remote control:', msg.type);
             switch (msg.type) {
-                case 'play':        videoEl.play(); flashPlayPause('▶'); break;
-                case 'pause':       videoEl.pause(); flashPlayPause('⏸'); break;
-                case 'seek':        videoEl.currentTime = msg.time; showOverlay(); break;
+                case 'play':
+                    videoEl.play();
+                    flashPlayPause('▶');
+                    break;
+                case 'pause':
+                    videoEl.pause();
+                    flashPlayPause('⏸');
+                    break;
+                case 'seek':
+                    videoEl.currentTime = msg.time;
+                    showOverlay();
+                    break;
                 case 'seekRelative':
-                    videoEl.currentTime = Math.max(0, Math.min(videoEl.duration || 0, videoEl.currentTime + msg.seconds));
-                    flashSeek(msg.seconds); showOverlay(); break;
-                case 'volume':      videoEl.volume = msg.volume; break;
-                case 'metadata':    mediaTitle.textContent = msg.title; break;
+                    videoEl.currentTime = Math.max(0, Math.min(
+                        videoEl.duration || 0,
+                        videoEl.currentTime + msg.seconds
+                    ));
+                    flashSeek(msg.seconds);
+                    showOverlay();
+                    break;
+                case 'volume':
+                    videoEl.volume = msg.volume;
+                    break;
+                case 'metadata':
+                    mediaTitle.textContent = msg.title;
+                    break;
             }
         }
 
@@ -487,8 +540,10 @@
         document.addEventListener('keydown', e => {
             switch (e.keyCode) {
                 case 13: case 32:
-                    if (state.overlayVisible) { videoEl.paused ? videoEl.play() : videoEl.pause(); flashPlayPause(videoEl.paused ? '⏸' : '▶'); }
-                    else showOverlay();
+                    if (state.overlayVisible) {
+                        videoEl.paused ? videoEl.play() : videoEl.pause();
+                        flashPlayPause(videoEl.paused ? '⏸' : '▶');
+                    } else showOverlay();
                     e.preventDefault(); break;
                 case 38: showOverlay(); e.preventDefault(); break;
                 case 40: hideOverlay(); e.preventDefault(); break;
