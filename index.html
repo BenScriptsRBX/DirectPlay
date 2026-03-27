@@ -346,6 +346,7 @@
             statusMsg.textContent = 'Waiting for device…';
 
             const peer = new Peer('castflow-' + code, {
+                host: '0.peerjs.com', port: 443, secure: true,
                 debug: 0,
             });
 
