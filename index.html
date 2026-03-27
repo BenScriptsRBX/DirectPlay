@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CastFlow Receiver</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -13,9 +14,10 @@
             --white: #ffffff;
             --dim: rgba(255,255,255,0.45);
             --dimmer: rgba(255,255,255,0.15);
-            --glass: rgba(255,255,255,0.07);
-            --glass-border: rgba(255,255,255,0.12);
+            --glass: rgba(255,255,255,0.06);
+            --glass-border: rgba(255,255,255,0.11);
             --accent: #e8ff47;
+            --red: #ff5c5c;
         }
 
         html, body {
@@ -27,10 +29,8 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ── Video ─────────────────────────────────────────────────────────── */
         #videoEl {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             width: 100%; height: 100%;
             object-fit: contain;
             background: #000;
@@ -38,41 +38,36 @@
             z-index: 0;
         }
 
-        /* ── Waiting Screen ─────────────────────────────────────────────────── */
+        /* ── Waiting Screen ── */
         #waitingScreen {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             background: #000;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 50;
-            gap: 0;
         }
 
-        /* subtle scan-line texture */
         #waitingScreen::before {
             content: '';
-            position: absolute;
-            inset: 0;
+            position: absolute; inset: 0;
             background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(255,255,255,0.015) 2px,
-                rgba(255,255,255,0.015) 4px
+                0deg, transparent, transparent 2px,
+                rgba(255,255,255,0.012) 2px,
+                rgba(255,255,255,0.012) 4px
             );
             pointer-events: none;
         }
 
         .wt-logo {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 8px;
             color: var(--dim);
             text-transform: uppercase;
-            margin-bottom: 56px;
+            margin-bottom: 52px;
+            position: relative; z-index: 1;
         }
 
         .wt-card {
@@ -84,53 +79,51 @@
             flex-direction: column;
             align-items: center;
             gap: 6px;
-            backdrop-filter: blur(12px);
-            min-width: 380px;
+            min-width: 400px;
+            position: relative; z-index: 1;
         }
 
         .wt-label {
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 3px;
             color: var(--dim);
             text-transform: uppercase;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
-        #localIp {
+        #peerId {
             font-family: 'DM Mono', monospace;
-            font-size: 48px;
+            font-size: 52px;
             font-weight: 500;
             color: var(--white);
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             line-height: 1;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+            text-align: center;
         }
 
         .wt-sublabel {
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 2px;
             color: var(--dimmer);
             text-transform: uppercase;
         }
 
         .wt-divider {
-            width: 1px;
-            height: 32px;
+            width: 1px; height: 28px;
             background: var(--glass-border);
-            margin: 28px 0;
+            margin: 22px 0;
         }
 
         #statusMsg {
             font-size: 13px;
             color: var(--dim);
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
-        /* dot loader */
         .dot-loader {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
+            display: flex; gap: 8px;
+            margin-top: 14px;
         }
 
         .dot-loader span {
@@ -143,62 +136,11 @@
         .dot-loader span:nth-child(3) { animation-delay: 0.5s; }
 
         @keyframes dotPulse {
-            0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
-            40% { transform: scale(1); opacity: 1; }
+            0%,80%,100% { transform:scale(0.5); opacity:0.3; }
+            40% { transform:scale(1); opacity:1; }
         }
 
-        /* manual IP input fallback */
-        .wt-manual {
-            margin-top: 32px;
-            display: flex;
-            gap: 0;
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        #manualIpInput {
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--white);
-            font-family: 'DM Mono', monospace;
-            font-size: 16px;
-            padding: 12px 18px;
-            width: 200px;
-            letter-spacing: 1px;
-        }
-
-        #manualIpInput::placeholder { color: var(--dimmer); }
-
-        #manualIpBtn {
-            background: var(--glass);
-            border: none;
-            border-left: 1px solid var(--glass-border);
-            color: var(--dim);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 12px;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            padding: 12px 18px;
-            cursor: pointer;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        #manualIpBtn:hover {
-            background: rgba(255,255,255,0.12);
-            color: var(--white);
-        }
-
-        .wt-manual-label {
-            font-size: 10px;
-            letter-spacing: 2px;
-            color: var(--dimmer);
-            text-transform: uppercase;
-            margin-top: 10px;
-        }
-
-        /* ── Playback Overlay ───────────────────────────────────────────────── */
+        /* ── Playback Overlay ── */
         #overlay {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -224,8 +166,7 @@
 
         .progress-wrapper {
             position: relative;
-            width: 100%;
-            height: 3px;
+            width: 100%; height: 3px;
             background: var(--dimmer);
             border-radius: 2px;
             margin-bottom: 18px;
@@ -240,9 +181,8 @@
         }
 
         #progressHandle {
-            position: absolute;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(0);
+            position: absolute; top: 50%;
+            transform: translate(-50%,-50%) scale(0);
             width: 14px; height: 14px;
             background: var(--white);
             border-radius: 50%;
@@ -250,7 +190,7 @@
             box-shadow: 0 0 8px rgba(255,255,255,0.5);
         }
 
-        #overlay.visible #progressHandle { transform: translate(-50%, -50%) scale(1); }
+        #overlay.visible #progressHandle { transform: translate(-50%,-50%) scale(1); }
 
         .controls-row {
             display: flex;
@@ -266,29 +206,22 @@
             letter-spacing: 0.5px;
         }
 
-        #playStateEl {
-            font-size: 20px;
-            color: var(--dim);
-        }
+        #playStateEl { font-size: 20px; color: var(--dim); }
 
-        /* ── Flash Indicators ───────────────────────────────────────────────── */
+        /* ── Seek flash ── */
         .seek-indicator {
-            position: fixed;
-            top: 50%;
+            position: fixed; top: 50%;
             transform: translateY(-50%);
             background: rgba(0,0,0,0.55);
             backdrop-filter: blur(8px);
             border: 1px solid var(--glass-border);
             color: var(--white);
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 18px; font-weight: 600;
             padding: 16px 28px;
             border-radius: 14px;
             opacity: 0;
             transition: opacity 0.15s ease;
-            pointer-events: none;
-            z-index: 30;
-            letter-spacing: 0.5px;
+            pointer-events: none; z-index: 30;
         }
 
         #seekBack { left: 72px; }
@@ -296,46 +229,34 @@
         .seek-indicator.flash { opacity: 1; }
 
         #playFlash {
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 64px;
-            color: var(--white);
-            opacity: 0;
-            pointer-events: none;
-            z-index: 30;
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            font-size: 64px; color: var(--white);
+            opacity: 0; pointer-events: none; z-index: 30;
             transition: opacity 0.15s ease;
             text-shadow: 0 4px 32px rgba(0,0,0,0.9);
-            filter: drop-shadow(0 0 16px rgba(255,255,255,0.3));
         }
-
         #playFlash.flash { opacity: 1; }
 
-        /* ── Toast ──────────────────────────────────────────────────────────── */
+        /* ── Toast ── */
         #toast {
-            position: fixed;
-            top: 36px;
-            left: 50%;
+            position: fixed; top: 36px; left: 50%;
             transform: translateX(-50%) translateY(-72px);
-            background: rgba(20,20,20,0.85);
+            background: rgba(15,15,15,0.9);
             backdrop-filter: blur(16px);
             color: var(--white);
             padding: 11px 26px;
             border-radius: 40px;
             font-size: 13px;
-            letter-spacing: 0.3px;
             transition: transform 0.4s cubic-bezier(.4,0,.2,1);
-            z-index: 60;
+            z-index: 70;
             border: 1px solid var(--glass-border);
             white-space: nowrap;
         }
-
         #toast.show { transform: translateX(-50%) translateY(0); }
 
-        /* ── Connected accent bar ───────────────────────────────────────────── */
         #connectedBar {
-            position: fixed;
-            top: 0; left: 0; right: 0;
+            position: fixed; top: 0; left: 0; right: 0;
             height: 2px;
             background: var(--accent);
             transform: scaleX(0);
@@ -343,36 +264,23 @@
             transition: transform 0.6s cubic-bezier(.4,0,.2,1);
             z-index: 40;
         }
-
         #connectedBar.show { transform: scaleX(1); }
     </style>
 </head>
 <body>
 
-    <!-- Waiting Screen -->
     <div id="waitingScreen">
         <p class="wt-logo">CastFlow</p>
-
         <div class="wt-card">
-            <p class="wt-label">Connect using this IP</p>
-            <div id="localIp">···</div>
+            <p class="wt-label">Your code</p>
+            <div id="peerId">····</div>
             <p class="wt-sublabel">Enter in the CastFlow extension</p>
-
             <div class="wt-divider"></div>
-
-            <div id="statusMsg">Connecting to server…</div>
+            <div id="statusMsg">Connecting…</div>
             <div class="dot-loader"><span></span><span></span><span></span></div>
-
-            <!-- Manual override if IP is wrong -->
-            <div class="wt-manual">
-                <input id="manualIpInput" type="text" placeholder="Override IP…" spellcheck="false">
-                <button id="manualIpBtn">Use</button>
-            </div>
-            <p class="wt-manual-label">Manual override if IP looks wrong</p>
         </div>
     </div>
 
-    <!-- Playback UI -->
     <div id="connectedBar"></div>
     <div id="toast"></div>
     <video id="videoEl" autoplay playsinline></video>
@@ -399,244 +307,145 @@
 
     <script>
     (() => {
-        // ── CONFIG ────────────────────────────────────────────────────────────
-        // The receiver page is served by the Node server itself, so we connect
-        // back to the same host/port dynamically — no hardcoding needed.
-        const SIGNAL_SERVER = `ws://${location.host}`;
+        const peerIdEl      = document.getElementById('peerId');
+        const statusMsg     = document.getElementById('statusMsg');
+        const waitingScreen = document.getElementById('waitingScreen');
+        const videoEl       = document.getElementById('videoEl');
+        const overlay       = document.getElementById('overlay');
+        const mediaTitle    = document.getElementById('mediaTitle');
+        const progressFill  = document.getElementById('progressFill');
+        const progressHandle= document.getElementById('progressHandle');
+        const currentTimeEl = document.getElementById('currentTimeEl');
+        const durationEl    = document.getElementById('durationEl');
+        const playStateEl   = document.getElementById('playStateEl');
+        const playFlash     = document.getElementById('playFlash');
+        const seekBack      = document.getElementById('seekBack');
+        const seekFwd       = document.getElementById('seekFwd');
+        const toast         = document.getElementById('toast');
+        const connectedBar  = document.getElementById('connectedBar');
 
-        // ── STATE ─────────────────────────────────────────────────────────────
-        const state = {
-            ws: null,
-            pc: null,
-            hideTimer: null,
-            overlayVisible: false,
-            displayIp: null,
-            registered: false,    // true once we have a confirmed IP
-            reconnectDelay: 1000, // ms, doubles on each failure
-            pingTimer: null,
-        };
+        const state = { hideTimer: null, overlayVisible: false };
 
-        // ── ELEMENTS ──────────────────────────────────────────────────────────
-        const videoEl        = document.getElementById('videoEl');
-        const overlay        = document.getElementById('overlay');
-        const waitingScreen  = document.getElementById('waitingScreen');
-        const localIpEl      = document.getElementById('localIp');
-        const statusMsg      = document.getElementById('statusMsg');
-        const mediaTitle     = document.getElementById('mediaTitle');
-        const progressFill   = document.getElementById('progressFill');
-        const progressHandle = document.getElementById('progressHandle');
-        const currentTimeEl  = document.getElementById('currentTimeEl');
-        const durationEl     = document.getElementById('durationEl');
-        const playStateEl    = document.getElementById('playStateEl');
-        const playFlash      = document.getElementById('playFlash');
-        const seekBack       = document.getElementById('seekBack');
-        const seekFwd        = document.getElementById('seekFwd');
-        const toast          = document.getElementById('toast');
-        const connectedBar   = document.getElementById('connectedBar');
-        const manualInput    = document.getElementById('manualIpInput');
-        const manualBtn      = document.getElementById('manualIpBtn');
-
-        // ── MANUAL IP OVERRIDE ────────────────────────────────────────────────
-        manualBtn.addEventListener('click', () => {
-            const v = manualInput.value.trim();
-            if (v) {
-                localIpEl.textContent = v;
-                state.displayIp = v;
-                showToast('📋 IP overridden to ' + v);
+        // ── PEERJS ────────────────────────────────────────────────────────────
+        // Generate a short memorable 4-char code, stable per browser session
+        function getOrCreateCode() {
+            let code = sessionStorage.getItem('cf_peer_id');
+            if (!code) {
+                // 4 uppercase letters, easy to type
+                code = Array.from({ length: 4 }, () =>
+                    'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]
+                ).join('');
+                sessionStorage.setItem('cf_peer_id', code);
             }
-        });
-
-        manualInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') manualBtn.click();
-        });
-
-        // ── WEBSOCKET + SIGNALING ─────────────────────────────────────────────
-        function connectSignaling() {
-            // Don't stack connections
-            if (state.ws && state.ws.readyState === WebSocket.CONNECTING) return;
-
-            state.ws = new WebSocket(SIGNAL_SERVER);
-
-            state.ws.onopen = () => {
-                console.log('Connected to local signaling server');
-                state.reconnectDelay = 1000; // reset backoff on success
-                statusMsg.textContent = state.registered ? 'Waiting for device…' : 'Registering…';
-
-                // Send register every time we (re)connect
-                send({ type: 'register' });
-
-                // Keepalive ping every 20s to prevent idle disconnection
-                clearInterval(state.pingTimer);
-                state.pingTimer = setInterval(() => {
-                    if (state.ws?.readyState === WebSocket.OPEN) {
-                        state.ws.send(JSON.stringify({ type: 'ping' }));
-                    }
-                }, 20000);
-            };
-
-            state.ws.onmessage = async (e) => {
-                const msg = JSON.parse(e.data);
-                console.log('Signal received:', msg.type);
-
-                switch (msg.type) {
-
-                    case 'registered':
-                        state.registered = true;
-                        state.displayIp = msg.ip;
-                        localIpEl.textContent = msg.ip;
-                        statusMsg.textContent = 'Waiting for device…';
-                        break;
-
-                    case 'pong':
-                        // keepalive acknowledged — do nothing
-                        break;
-
-                    case 'caster_joined':
-                        statusMsg.textContent = 'Device connected — starting stream…';
-                        showToast('📱 Device connected');
-                        await startWebRTC();
-                        break;
-
-                    case 'offer':
-                        await handleOffer(msg.sdp);
-                        break;
-
-                    case 'ice':
-                        if (state.pc && msg.candidate) {
-                            try {
-                                await state.pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
-                            } catch(err) {
-                                console.warn('ICE error:', err);
-                            }
-                        }
-                        break;
-
-                    case 'play':
-                        videoEl.play();
-                        flashPlayPause('▶');
-                        break;
-
-                    case 'pause':
-                        videoEl.pause();
-                        flashPlayPause('⏸');
-                        break;
-
-                    case 'seek':
-                        videoEl.currentTime = msg.time;
-                        showOverlay();
-                        break;
-
-                    case 'seekRelative':
-                        videoEl.currentTime = Math.max(0, Math.min(
-                            videoEl.duration || 0,
-                            videoEl.currentTime + msg.seconds
-                        ));
-                        flashSeek(msg.seconds);
-                        showOverlay();
-                        break;
-
-                    case 'volume':
-                        videoEl.volume = msg.volume;
-                        break;
-
-                    case 'metadata':
-                        mediaTitle.textContent = msg.title;
-                        break;
-
-                    case 'caster_disconnected':
-                        showToast('📵 Device disconnected');
-                        connectedBar.classList.remove('show');
-                        break;
-
-                    case 'error':
-                        console.error('Signal error:', msg.message);
-                        statusMsg.textContent = 'Error: ' + msg.message;
-                        break;
-                }
-            };
-
-            state.ws.onclose = () => {
-                clearInterval(state.pingTimer);
-                console.log(`Signaling disconnected — retrying in ${state.reconnectDelay}ms…`);
-                // Only blank the IP if we never successfully registered
-                if (!state.registered) {
-                    localIpEl.textContent = '···';
-                    statusMsg.textContent = 'Reconnecting…';
-                } else {
-                    statusMsg.textContent = 'Reconnecting…';
-                    // Keep showing the IP — it hasn't changed
-                }
-                setTimeout(connectSignaling, state.reconnectDelay);
-                state.reconnectDelay = Math.min(state.reconnectDelay * 2, 15000);
-            };
-
-            state.ws.onerror = (err) => console.error('WS error:', err);
+            return code;
         }
 
-        function send(msg) {
-            if (state.ws?.readyState === WebSocket.OPEN) {
-                state.ws.send(JSON.stringify(msg));
-            }
-        }
+        function init() {
+            const code = getOrCreateCode();
+            peerIdEl.textContent = code;
+            statusMsg.textContent = 'Waiting for device…';
 
-        // ── WEBRTC — receive stream ────────────────────────────────────────────
-        async function startWebRTC() {
-            // Close any existing peer
-            if (state.pc) {
-                state.pc.close();
-                state.pc = null;
-            }
-
-            state.pc = new RTCPeerConnection({
-                iceServers: [
-                    // Local STUN is fine since we're on LAN; no TURN needed
-                    { urls: 'stun:stun.l.google.com:19302' }
-                ]
+            const peer = new Peer('castflow-' + code, {
+                debug: 0,
             });
 
-            state.pc.ontrack = (e) => {
-                console.log('Track received:', e.track.kind);
-                if (e.streams?.[0]) {
-                    videoEl.srcObject = e.streams[0];
+            peer.on('open', (id) => {
+                console.log('Peer ready:', id);
+                statusMsg.textContent = 'Waiting for device…';
+            });
+
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                if (err.type === 'unavailable-id') {
+                    // Code taken — generate a new one
+                    sessionStorage.removeItem('cf_peer_id');
+                    peer.destroy();
+                    init();
+                } else {
+                    statusMsg.textContent = 'Reconnecting…';
+                    setTimeout(init, 3000);
+                }
+            });
+
+            peer.on('disconnected', () => {
+                statusMsg.textContent = 'Reconnecting…';
+                peer.reconnect();
+            });
+
+            // ── Incoming media call (video stream) ───────────────────────────
+            peer.on('call', (call) => {
+                showToast('📱 Device connected');
+                statusMsg.textContent = 'Starting stream…';
+                call.answer(); // no local stream — we're receiver only
+
+                call.on('stream', (remoteStream) => {
+                    videoEl.srcObject = remoteStream;
                     videoEl.play().catch(() => {});
                     waitingScreen.style.display = 'none';
                     connectedBar.classList.add('show');
                     showToast('🎬 Stream started');
-                }
-            };
+                });
 
-            state.pc.onicecandidate = (e) => {
-                if (e.candidate) {
-                    send({ type: 'ice', candidate: e.candidate });
-                }
-            };
+                call.on('close', () => {
+                    showToast('📵 Device disconnected');
+                    connectedBar.classList.remove('show');
+                    waitingScreen.style.display = 'flex';
+                    statusMsg.textContent = 'Waiting for device…';
+                    videoEl.srcObject = null;
+                });
 
-            state.pc.onconnectionstatechange = () => {
-                console.log('PC state:', state.pc?.connectionState);
-                if (state.pc?.connectionState === 'connected') {
-                    showToast('✅ Peer connected');
-                }
-                if (state.pc?.connectionState === 'failed') {
-                    showToast('❌ Connection failed — try again');
-                }
-            };
+                call.on('error', (err) => {
+                    console.error('Call error:', err);
+                    showToast('❌ Stream error');
+                });
+            });
+
+            // ── Incoming data connection (remote control) ────────────────────
+            peer.on('connection', (conn) => {
+                conn.on('data', (msg) => {
+                    switch (msg.type) {
+                        case 'play':
+                            videoEl.play();
+                            flashPlayPause('▶');
+                            break;
+                        case 'pause':
+                            videoEl.pause();
+                            flashPlayPause('⏸');
+                            break;
+                        case 'seek':
+                            videoEl.currentTime = msg.time;
+                            showOverlay();
+                            break;
+                        case 'seekRelative':
+                            videoEl.currentTime = Math.max(0, Math.min(
+                                videoEl.duration || 0,
+                                videoEl.currentTime + msg.seconds
+                            ));
+                            flashSeek(msg.seconds);
+                            showOverlay();
+                            break;
+                        case 'volume':
+                            videoEl.volume = msg.volume;
+                            break;
+                        case 'metadata':
+                            mediaTitle.textContent = msg.title;
+                            break;
+                    }
+                });
+            });
         }
 
-        async function handleOffer(sdp) {
-            if (!state.pc) await startWebRTC();
-            await state.pc.setRemoteDescription(
-                new RTCSessionDescription({ type: 'offer', sdp })
-            );
-            const answer = await state.pc.createAnswer();
-            await state.pc.setLocalDescription(answer);
-            send({ type: 'answer', sdp: answer.sdp });
-        }
+        init();
 
         // ── OVERLAY ───────────────────────────────────────────────────────────
         function showOverlay() {
             overlay.classList.add('visible');
             state.overlayVisible = true;
-            resetHideTimer();
+            clearTimeout(state.hideTimer);
+            state.hideTimer = setTimeout(() => {
+                overlay.classList.remove('visible');
+                state.overlayVisible = false;
+            }, 5000);
         }
 
         function hideOverlay() {
@@ -644,16 +453,8 @@
             state.overlayVisible = false;
         }
 
-        function resetHideTimer() {
-            clearTimeout(state.hideTimer);
-            state.hideTimer = setTimeout(hideOverlay, 5000);
-        }
-
-        // ── PROGRESS ──────────────────────────────────────────────────────────
         videoEl.addEventListener('timeupdate', () => {
-            const pct = videoEl.duration
-                ? (videoEl.currentTime / videoEl.duration) * 100
-                : 0;
+            const pct = videoEl.duration ? (videoEl.currentTime / videoEl.duration) * 100 : 0;
             progressFill.style.width = pct + '%';
             progressHandle.style.left = pct + '%';
             currentTimeEl.textContent = formatTime(videoEl.currentTime);
@@ -663,7 +464,7 @@
         videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
         videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
-        // ── FLASH ANIMATIONS ──────────────────────────────────────────────────
+        // ── FLASH ─────────────────────────────────────────────────────────────
         function flashPlayPause(icon) {
             playFlash.textContent = icon;
             playFlash.classList.add('flash');
@@ -673,38 +474,30 @@
 
         function flashSeek(seconds) {
             const el = seconds < 0 ? seekBack : seekFwd;
-            el.textContent = seconds < 0
-                ? `⏪ ${Math.abs(seconds)}s`
-                : `${seconds}s ⏩`;
+            el.textContent = seconds < 0 ? `⏪ ${Math.abs(seconds)}s` : `${seconds}s ⏩`;
             el.classList.add('flash');
             setTimeout(() => el.classList.remove('flash'), 600);
         }
 
-        // ── TV REMOTE KEYS ────────────────────────────────────────────────────
-        document.addEventListener('keydown', (e) => {
+        // ── TV REMOTE ─────────────────────────────────────────────────────────
+        document.addEventListener('keydown', e => {
             switch (e.keyCode) {
-                case 13: case 32: // OK / Space
+                case 13: case 32:
                     if (state.overlayVisible) {
                         videoEl.paused ? videoEl.play() : videoEl.pause();
                         flashPlayPause(videoEl.paused ? '⏸' : '▶');
-                    } else {
-                        showOverlay();
-                    }
+                    } else { showOverlay(); }
                     e.preventDefault(); break;
-
-                case 38: showOverlay(); e.preventDefault(); break;   // D-pad up
-                case 40: hideOverlay(); e.preventDefault(); break;   // D-pad down
-
-                case 37: case 412: // Left / Rewind
+                case 38: showOverlay(); e.preventDefault(); break;
+                case 40: hideOverlay(); e.preventDefault(); break;
+                case 37: case 412:
                     videoEl.currentTime = Math.max(0, videoEl.currentTime - 5);
                     flashSeek(-5); showOverlay(); e.preventDefault(); break;
-
-                case 39: case 417: // Right / FF
+                case 39: case 417:
                     videoEl.currentTime = Math.min(videoEl.duration || 0, videoEl.currentTime + 5);
                     flashSeek(5); showOverlay(); e.preventDefault(); break;
-
-                case 415: videoEl.play(); flashPlayPause('▶'); break;  // Play
-                case 19:  videoEl.pause(); flashPlayPause('⏸'); break; // Pause
+                case 415: videoEl.play(); flashPlayPause('▶'); break;
+                case 19:  videoEl.pause(); flashPlayPause('⏸'); break;
             }
         });
 
@@ -717,18 +510,12 @@
             toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
-        // ── HELPERS ───────────────────────────────────────────────────────────
         function formatTime(s) {
             if (!s || isNaN(s)) return '0:00';
-            const h   = Math.floor(s / 3600);
-            const m   = Math.floor((s % 3600) / 60);
-            const sec = Math.floor(s % 60);
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
             if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
             return `${m}:${sec.toString().padStart(2,'0')}`;
         }
-
-        // ── INIT ──────────────────────────────────────────────────────────────
-        connectSignaling();
 
     })();
     </script>
