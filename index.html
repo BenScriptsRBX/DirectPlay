@@ -57,12 +57,9 @@
         }
 
         .wt-logo {
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 8px;
-            color: var(--dim);
-            text-transform: uppercase;
-            margin-bottom: 52px;
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 8px; color: var(--dim);
+            text-transform: uppercase; margin-bottom: 52px;
             position: relative; z-index: 1;
         }
 
@@ -71,149 +68,103 @@
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             padding: 48px 64px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 6px;
             min-width: 400px;
             position: relative; z-index: 1;
         }
 
         .wt-label {
-            font-size: 10px;
-            letter-spacing: 3px;
-            color: var(--dim);
-            text-transform: uppercase;
-            margin-bottom: 8px;
+            font-size: 10px; letter-spacing: 3px;
+            color: var(--dim); text-transform: uppercase; margin-bottom: 8px;
         }
 
         #codeEl {
             font-family: 'DM Mono', monospace;
-            font-size: 64px;
-            font-weight: 500;
-            color: var(--white);
-            letter-spacing: 8px;
-            line-height: 1;
-            margin-bottom: 10px;
+            font-size: 64px; font-weight: 500;
+            color: var(--white); letter-spacing: 8px;
+            line-height: 1; margin-bottom: 10px;
         }
 
         .wt-sublabel {
-            font-size: 10px;
-            letter-spacing: 2px;
-            color: var(--dimmer);
-            text-transform: uppercase;
+            font-size: 10px; letter-spacing: 2px;
+            color: var(--dimmer); text-transform: uppercase;
         }
 
         .wt-divider {
             width: 1px; height: 28px;
-            background: var(--glass-border);
-            margin: 22px 0;
+            background: var(--glass-border); margin: 22px 0;
         }
 
-        #statusMsg {
-            font-size: 13px;
-            color: var(--dim);
-            letter-spacing: 0.5px;
-        }
+        #statusMsg { font-size: 13px; color: var(--dim); letter-spacing: 0.5px; }
 
-        .dot-loader {
-            display: flex; gap: 8px;
-            margin-top: 14px;
-        }
-
+        .dot-loader { display: flex; gap: 8px; margin-top: 14px; }
         .dot-loader span {
-            width: 5px; height: 5px;
-            background: var(--dimmer);
-            border-radius: 50%;
-            animation: dotPulse 1.6s ease-in-out infinite;
+            width: 5px; height: 5px; background: var(--dimmer);
+            border-radius: 50%; animation: dotPulse 1.6s ease-in-out infinite;
         }
         .dot-loader span:nth-child(2) { animation-delay: 0.25s; }
         .dot-loader span:nth-child(3) { animation-delay: 0.5s; }
 
         @keyframes dotPulse {
             0%,80%,100% { transform:scale(0.5); opacity:0.3; }
-            40% { transform:scale(1); opacity:1; }
+            40%          { transform:scale(1);   opacity:1; }
         }
 
         #overlay {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
+            position: fixed; bottom: 0; left: 0; right: 0;
             padding: 0 64px 52px;
             background: linear-gradient(transparent, rgba(0,0,0,0.92) 60%);
             transform: translateY(100%);
             transition: transform 0.35s cubic-bezier(.4,0,.2,1);
             z-index: 20;
         }
-
         #overlay.visible { transform: translateY(0); }
 
         #mediaTitle {
-            font-size: 26px;
-            font-weight: 600;
-            color: var(--white);
-            margin-bottom: 22px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 26px; font-weight: 600; color: var(--white);
+            margin-bottom: 22px; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
         }
 
         .progress-wrapper {
-            position: relative;
-            width: 100%; height: 3px;
-            background: var(--dimmer);
-            border-radius: 2px;
-            margin-bottom: 18px;
+            position: relative; width: 100%; height: 3px;
+            background: var(--dimmer); border-radius: 2px; margin-bottom: 18px;
         }
 
         #progressFill {
-            height: 100%;
-            background: var(--white);
-            border-radius: 2px;
-            width: 0%;
-            transition: width 0.5s linear;
+            height: 100%; background: var(--white);
+            border-radius: 2px; width: 0%; transition: width 0.5s linear;
         }
 
         #progressHandle {
             position: absolute; top: 50%;
             transform: translate(-50%,-50%) scale(0);
             width: 14px; height: 14px;
-            background: var(--white);
-            border-radius: 50%;
+            background: var(--white); border-radius: 50%;
             transition: transform 0.2s ease, left 0.5s linear;
         }
-
         #overlay.visible #progressHandle { transform: translate(-50%,-50%) scale(1); }
 
         .controls-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
         }
 
         .time-display {
-            font-family: 'DM Mono', monospace;
-            font-size: 14px;
-            color: var(--dim);
-            min-width: 130px;
+            font-family: 'DM Mono', monospace; font-size: 14px;
+            color: var(--dim); min-width: 130px;
         }
 
         #playStateEl { font-size: 20px; color: var(--dim); }
 
         .seek-indicator {
-            position: fixed; top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--glass-border);
-            color: var(--white);
-            font-size: 18px; font-weight: 600;
-            padding: 16px 28px;
-            border-radius: 14px;
-            opacity: 0;
-            transition: opacity 0.15s ease;
+            position: fixed; top: 50%; transform: translateY(-50%);
+            background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border); color: var(--white);
+            font-size: 18px; font-weight: 600; padding: 16px 28px;
+            border-radius: 14px; opacity: 0; transition: opacity 0.15s ease;
             pointer-events: none; z-index: 30;
         }
-
         #seekBack { left: 72px; }
         #seekFwd  { right: 72px; }
         .seek-indicator.flash { opacity: 1; }
@@ -231,427 +182,432 @@
         #toast {
             position: fixed; top: 36px; left: 50%;
             transform: translateX(-50%) translateY(-72px);
-            background: rgba(15,15,15,0.9);
-            backdrop-filter: blur(16px);
-            color: var(--white);
-            padding: 11px 26px;
-            border-radius: 40px;
-            font-size: 13px;
-            transition: transform 0.4s cubic-bezier(.4,0,.2,1);
-            z-index: 70;
-            border: 1px solid var(--glass-border);
-            white-space: nowrap;
+            background: rgba(15,15,15,0.9); backdrop-filter: blur(16px);
+            color: var(--white); padding: 11px 26px; border-radius: 40px;
+            font-size: 13px; transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+            z-index: 70; border: 1px solid var(--glass-border); white-space: nowrap;
         }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
         #connectedBar {
-            position: fixed; top: 0; left: 0; right: 0;
-            height: 2px;
-            background: var(--accent);
-            transform: scaleX(0);
+            position: fixed; top: 0; left: 0; right: 0; height: 2px;
+            background: var(--accent); transform: scaleX(0);
             transform-origin: left;
-            transition: transform 0.6s cubic-bezier(.4,0,.2,1);
-            z-index: 40;
+            transition: transform 0.6s cubic-bezier(.4,0,.2,1); z-index: 40;
         }
         #connectedBar.show { transform: scaleX(1); }
 
-        /* Unmute button — shown if autoplay with audio is blocked */
         #unmuteBtn {
             position: fixed; bottom: 40px; right: 40px;
-            background: rgba(15,15,15,0.85);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            color: var(--white);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 14px; font-weight: 500;
-            padding: 12px 24px;
-            border-radius: 40px;
-            cursor: pointer;
-            z-index: 60;
-            display: none;
-            transition: opacity 0.3s ease;
+            background: rgba(15,15,15,0.85); backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); color: var(--white);
+            font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+            padding: 12px 24px; border-radius: 40px; cursor: pointer;
+            z-index: 60; display: none;
         }
         #unmuteBtn:hover { background: rgba(40,40,40,0.9); }
     </style>
 </head>
 <body>
 
-    <div id="waitingScreen">
-        <p class="wt-logo">CastFlow</p>
-        <div class="wt-card">
-            <p class="wt-label">Your code</p>
-            <div id="codeEl">····</div>
-            <p class="wt-sublabel">Enter in the CastFlow extension</p>
-            <div class="wt-divider"></div>
-            <div id="statusMsg">Starting…</div>
-            <div class="dot-loader"><span></span><span></span><span></span></div>
-        </div>
+<div id="waitingScreen">
+    <p class="wt-logo">CastFlow</p>
+    <div class="wt-card">
+        <p class="wt-label">Your code</p>
+        <div id="codeEl">····</div>
+        <p class="wt-sublabel">Enter in the CastFlow extension</p>
+        <div class="wt-divider"></div>
+        <div id="statusMsg">Starting…</div>
+        <div class="dot-loader"><span></span><span></span><span></span></div>
     </div>
+</div>
 
-    <div id="connectedBar"></div>
-    <div id="toast"></div>
+<div id="connectedBar"></div>
+<div id="toast"></div>
 
-    <!--
-        CRITICAL: video must be muted for autoplay to work without a user gesture.
-        We unmute programmatically after the first interaction, or show a button.
-    -->
-    <video id="videoEl" autoplay playsinline muted></video>
+<!--
+    muted is REQUIRED for autoplay without a user gesture.
+    We unmute programmatically 300ms after play starts.
+-->
+<video id="videoEl" autoplay playsinline muted></video>
+<button id="unmuteBtn">🔊 Tap to enable audio</button>
 
-    <button id="unmuteBtn">🔊 Tap to enable audio</button>
+<div id="playFlash">▶</div>
+<div class="seek-indicator" id="seekBack">⏪ 5s</div>
+<div class="seek-indicator" id="seekFwd">5s ⏩</div>
 
-    <div id="playFlash">▶</div>
-    <div class="seek-indicator" id="seekBack">⏪ 5s</div>
-    <div class="seek-indicator" id="seekFwd">5s ⏩</div>
-
-    <div id="overlay">
-        <div id="mediaTitle">—</div>
-        <div class="progress-wrapper">
-            <div id="progressFill"></div>
-            <div id="progressHandle"></div>
-        </div>
-        <div class="controls-row">
-            <span class="time-display">
-                <span id="currentTimeEl">0:00</span>
-                <span style="color:var(--dimmer)"> / </span>
-                <span id="durationEl">0:00</span>
-            </span>
-            <span id="playStateEl">▶</span>
-            <span style="min-width:130px;"></span>
-        </div>
+<div id="overlay">
+    <div id="mediaTitle">—</div>
+    <div class="progress-wrapper">
+        <div id="progressFill"></div>
+        <div id="progressHandle"></div>
     </div>
+    <div class="controls-row">
+        <span class="time-display">
+            <span id="currentTimeEl">0:00</span>
+            <span style="color:var(--dimmer)"> / </span>
+            <span id="durationEl">0:00</span>
+        </span>
+        <span id="playStateEl">▶</span>
+        <span style="min-width:130px;"></span>
+    </div>
+</div>
 
-    <script>
-    (() => {
-        const SIGNAL = '/api/signal';
+<script>
+(() => {
+    const SIGNAL = '/api/signal';
 
-        const codeEl         = document.getElementById('codeEl');
-        const statusMsg      = document.getElementById('statusMsg');
-        const waitingScreen  = document.getElementById('waitingScreen');
-        const videoEl        = document.getElementById('videoEl');
-        const overlay        = document.getElementById('overlay');
-        const mediaTitle     = document.getElementById('mediaTitle');
-        const progressFill   = document.getElementById('progressFill');
-        const progressHandle = document.getElementById('progressHandle');
-        const currentTimeEl  = document.getElementById('currentTimeEl');
-        const durationEl     = document.getElementById('durationEl');
-        const playStateEl    = document.getElementById('playStateEl');
-        const playFlash      = document.getElementById('playFlash');
-        const seekBack       = document.getElementById('seekBack');
-        const seekFwd        = document.getElementById('seekFwd');
-        const toast          = document.getElementById('toast');
-        const connectedBar   = document.getElementById('connectedBar');
-        const unmuteBtn      = document.getElementById('unmuteBtn');
+    const codeEl         = document.getElementById('codeEl');
+    const statusMsg      = document.getElementById('statusMsg');
+    const waitingScreen  = document.getElementById('waitingScreen');
+    const videoEl        = document.getElementById('videoEl');
+    const overlay        = document.getElementById('overlay');
+    const mediaTitle     = document.getElementById('mediaTitle');
+    const progressFill   = document.getElementById('progressFill');
+    const progressHandle = document.getElementById('progressHandle');
+    const currentTimeEl  = document.getElementById('currentTimeEl');
+    const durationEl     = document.getElementById('durationEl');
+    const playStateEl    = document.getElementById('playStateEl');
+    const playFlash      = document.getElementById('playFlash');
+    const seekBack       = document.getElementById('seekBack');
+    const seekFwd        = document.getElementById('seekFwd');
+    const toast          = document.getElementById('toast');
+    const connectedBar   = document.getElementById('connectedBar');
+    const unmuteBtn      = document.getElementById('unmuteBtn');
 
-        const state = {
-            code:           null,
-            pc:             null,
-            dc:             null,
-            pollTimer:      null,
-            hideTimer:      null,
-            overlayVisible: false,
-            hasStream:      false
+    const state = {
+        code:      null,
+        pc:        null,
+        dc:        null,
+        pollTimer: null,
+        hideTimer: null,
+    };
+
+    // ── Jitter buffer / latency control ──────────────────────────────────────
+    // RTCRtpReceiver.jitterBufferTarget is a new API (Chrome 113+) that lets
+    // us tell the browser to use a near-zero jitter buffer.
+    // Setting it to 0 means: play frames as soon as they arrive, never hold.
+    function minimizeJitterBuffer() {
+        if (!state.pc) return;
+        state.pc.getReceivers().forEach(receiver => {
+            if (receiver.track?.kind === 'video') {
+                try {
+                    // jitterBufferTarget is in milliseconds; 0 = no buffer
+                    if ('jitterBufferTarget' in receiver) {
+                        receiver.jitterBufferTarget = 0;
+                        console.log('[receiver] jitterBufferTarget set to 0');
+                    }
+                    // Older API name
+                    if ('playoutDelayHint' in receiver) {
+                        receiver.playoutDelayHint = 0;
+                        console.log('[receiver] playoutDelayHint set to 0');
+                    }
+                } catch (e) {
+                    console.warn('[receiver] jitter buffer API not supported:', e);
+                }
+            }
+        });
+    }
+
+    // ── Catch-up prevention ───────────────────────────────────────────────────
+    // When the browser falls behind it plays at >1x speed to catch up,
+    // causing the fast-forward effect. We detect this and hard-cut to live
+    // instead of letting it speed up.
+    //
+    // For a live tab capture stream, videoEl.duration is Infinity and
+    // videoEl.buffered gives us the end of the buffer. The "live edge" is
+    // buffered.end(last). If we're more than MAX_DRIFT seconds behind,
+    // jump to live edge instead of speeding up.
+    const MAX_DRIFT_SECONDS = 0.3; // tolerate 300ms behind live — anything more, snap
+
+    function startDriftCorrector() {
+        setInterval(() => {
+            if (videoEl.paused || !videoEl.duration) return;
+            if (!videoEl.buffered.length) return;
+
+            const liveEdge = videoEl.buffered.end(videoEl.buffered.length - 1);
+            const drift    = liveEdge - videoEl.currentTime;
+
+            if (drift > MAX_DRIFT_SECONDS) {
+                console.log(`[receiver] drift ${drift.toFixed(2)}s — snapping to live edge`);
+                // Hard jump to live edge instead of speeding up
+                videoEl.currentTime = liveEdge - 0.05; // stay just behind edge
+            }
+        }, 500);
+    }
+
+    // ── Unmute handling ───────────────────────────────────────────────────────
+    function tryUnmute() {
+        videoEl.muted = false;
+        videoEl.play().then(() => {
+            unmuteBtn.style.display = 'none';
+        }).catch(() => {
+            videoEl.muted = true;
+            videoEl.play().catch(() => {});
+            unmuteBtn.style.display = 'block';
+        });
+    }
+
+    unmuteBtn.addEventListener('click', () => {
+        videoEl.muted = false;
+        videoEl.play().catch(() => {});
+        unmuteBtn.style.display = 'none';
+    });
+
+    // ── Send command back to extension ────────────────────────────────────────
+    function sendToExtension(data) {
+        if (state.dc?.readyState === 'open') {
+            state.dc.send(JSON.stringify(data));
+        }
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+        state.code = sessionStorage.getItem('cf_code') || makeCode();
+        sessionStorage.setItem('cf_code', state.code);
+        codeEl.textContent    = state.code;
+        statusMsg.textContent = 'Waiting for device…';
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+        pollForOffer();
+        startDriftCorrector();
+    }
+
+    function makeCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        return Array.from({ length: 4 }, () =>
+            chars[Math.floor(Math.random() * chars.length)]
+        ).join('');
+    }
+
+    // ── Poll for offer ─────────────────────────────────────────────────────────
+    async function pollForOffer() {
+        try {
+            const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
+            const data = await res.json();
+            if (data.offer) {
+                clearTimeout(state.pollTimer);
+                statusMsg.textContent = 'Device found — connecting…';
+                await handleOffer(data.offer, data.ice_caster || []);
+                return;
+            }
+        } catch (e) { console.warn('Poll error:', e); }
+        state.pollTimer = setTimeout(pollForOffer, 1500);
+    }
+
+    // ── Handle offer ──────────────────────────────────────────────────────────
+    async function handleOffer(offer, iceCandidates) {
+        if (state.pc) { state.pc.close(); state.pc = null; }
+
+        state.pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ],
+            bundlePolicy:  'max-bundle',
+            rtcpMuxPolicy: 'require'
+        });
+
+        state.pc.ondatachannel = (e) => {
+            state.dc = e.channel;
+            state.dc.onopen    = () => console.log('[receiver] dc open');
+            state.dc.onmessage = (ev) => {
+                try { handleRemoteControl(JSON.parse(ev.data)); }
+                catch (err) { console.error('[receiver] dc parse error:', err); }
+            };
+            state.dc.onerror = (err) => console.error('[receiver] dc error:', err);
         };
 
-        // ── Generate stable 4-letter code ─────────────────────────────────────
-        function makeCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-            return Array.from({ length: 4 }, () =>
-                chars[Math.floor(Math.random() * chars.length)]
-            ).join('');
-        }
+        // Set up ICE candidate collection BEFORE setLocalDescription
+        const receiverCandidates = [];
+        state.pc.onicecandidate = (e) => {
+            if (e.candidate) receiverCandidates.push(e.candidate);
+        };
 
-        // ── Send a command back to the extension over the data channel ─────────
-        function sendToExtension(data) {
-            if (state.dc?.readyState === 'open') {
-                state.dc.send(JSON.stringify(data));
-            }
-        }
+        state.pc.ontrack = (e) => {
+            console.log('[receiver] track:', e.track.kind, 'streams:', e.streams.length);
+            const stream = e.streams?.[0];
+            if (!stream) return;
 
-        // ── Unmute handling ───────────────────────────────────────────────────
-        // Browsers block unmuted autoplay. We start muted, then try to unmute.
-        // If that also fails, we show a button the user can tap.
-        function tryUnmute() {
-            videoEl.muted = false;
-            // If play() rejects after unmuting, fall back to showing button
+            videoEl.srcObject = stream;
+
+            // Minimize jitter buffer as soon as we have receivers
+            minimizeJitterBuffer();
+
             videoEl.play().then(() => {
-                unmuteBtn.style.display = 'none';
-            }).catch(() => {
-                videoEl.muted = true;
-                videoEl.play().catch(() => {});
+                setTimeout(tryUnmute, 300);
+            }).catch(err => {
+                console.warn('[receiver] play failed:', err);
                 unmuteBtn.style.display = 'block';
             });
+
+            waitingScreen.style.display = 'none';
+            connectedBar.classList.add('show');
+            showToast('🎬 Stream started');
+        };
+
+        state.pc.onconnectionstatechange = () => {
+            const cs = state.pc?.connectionState;
+            console.log('[receiver] pc state:', cs);
+
+            // Re-apply jitter buffer settings when connection stabilizes
+            if (cs === 'connected') {
+                minimizeJitterBuffer();
+            }
+
+            if (cs === 'disconnected' || cs === 'failed') {
+                showToast('📵 Device disconnected');
+                connectedBar.classList.remove('show');
+                waitingScreen.style.display = 'flex';
+                statusMsg.textContent = 'Waiting for device…';
+                videoEl.srcObject = null;
+                state.pc = null; state.dc = null;
+                unmuteBtn.style.display = 'none';
+                fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+                pollForOffer();
+            }
+        };
+
+        // Correct order: remoteDescription → ICE candidates → answer → localDescription
+        await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
+
+        for (const c of iceCandidates) {
+            await state.pc.addIceCandidate(c).catch(() => {});
         }
 
-        unmuteBtn.addEventListener('click', () => {
-            videoEl.muted = false;
-            videoEl.play().catch(() => {});
-            unmuteBtn.style.display = 'none';
+        const answer = await state.pc.createAnswer();
+        await state.pc.setLocalDescription(answer);
+
+        // Short ICE gather timeout — match caster side
+        await waitForICE(2000);
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                answer: state.pc.localDescription.sdp,
+                ice:    receiverCandidates
+            })
         });
 
-        // ── Init ──────────────────────────────────────────────────────────────
-        async function init() {
-            state.code = sessionStorage.getItem('cf_code') || makeCode();
-            sessionStorage.setItem('cf_code', state.code);
-            codeEl.textContent    = state.code;
-            statusMsg.textContent = 'Waiting for device…';
+        statusMsg.textContent = 'Connected!';
+    }
 
-            await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-            pollForOffer();
-        }
-
-        // ── Poll for offer ────────────────────────────────────────────────────
-        async function pollForOffer() {
-            try {
-                const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
-                const data = await res.json();
-
-                if (data.offer) {
-                    clearTimeout(state.pollTimer);
-                    statusMsg.textContent = 'Device found — connecting…';
-                    await handleOffer(data.offer, data.ice_caster || []);
-                    return;
-                }
-            } catch (e) {
-                console.warn('Poll error:', e);
-            }
-
-            state.pollTimer = setTimeout(pollForOffer, 1500);
-        }
-
-        // ── Handle offer from caster ──────────────────────────────────────────
-        async function handleOffer(offer, iceCandidates) {
-            if (state.pc) { state.pc.close(); state.pc = null; }
-
-            state.pc = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            });
-
-            // Data channel — receives control messages FROM extension
-            state.pc.ondatachannel = (e) => {
-                state.dc = e.channel;
-                state.dc.onopen    = () => console.log('[receiver] dc open');
-                state.dc.onmessage = (ev) => {
-                    try { handleRemoteControl(JSON.parse(ev.data)); }
-                    catch (err) { console.error('[receiver] dc parse error:', err); }
-                };
-                state.dc.onerror = (err) => console.error('[receiver] dc error:', err);
-            };
-
-            // Collect receiver ICE candidates BEFORE setLocalDescription
-            const receiverCandidates = [];
-            state.pc.onicecandidate = (e) => {
-                if (e.candidate) receiverCandidates.push(e.candidate);
-            };
-
-            // ontrack — this is where video actually arrives
-            state.pc.ontrack = (e) => {
-                console.log('[receiver] track received:', e.track.kind, e.streams.length);
-
-                const stream = e.streams?.[0];
-                if (!stream) return;
-
-                // Assign stream — video is already muted so play() will succeed
-                videoEl.srcObject = stream;
-
-                videoEl.play().then(() => {
-                    console.log('[receiver] play() succeeded (muted)');
-                    // Now try to unmute — browsers allow this shortly after muted play starts
-                    setTimeout(tryUnmute, 300);
-                }).catch(err => {
-                    console.warn('[receiver] play() failed:', err);
-                    // Last resort: show unmute button
-                    unmuteBtn.style.display = 'block';
-                });
-
-                waitingScreen.style.display = 'none';
-                connectedBar.classList.add('show');
-                state.hasStream = true;
-                showToast('🎬 Stream started');
-            };
-
-            state.pc.onconnectionstatechange = () => {
-                const cs = state.pc?.connectionState;
-                console.log('[receiver] pc state:', cs);
-
-                if (cs === 'disconnected' || cs === 'failed') {
-                    showToast('📵 Device disconnected');
-                    connectedBar.classList.remove('show');
-                    waitingScreen.style.display = 'flex';
-                    statusMsg.textContent = 'Waiting for device…';
-                    videoEl.srcObject = null;
-                    state.pc  = null;
-                    state.dc  = null;
-                    state.hasStream = false;
-                    unmuteBtn.style.display = 'none';
-                    fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-                    pollForOffer();
-                }
-            };
-
-            // 1. Set remote description first
-            await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
-
-            // 2. Add caster's ICE candidates
-            for (const c of iceCandidates) {
-                await state.pc.addIceCandidate(c).catch(() => {});
-            }
-
-            // 3. Create and set answer — onicecandidate fires after this
-            const answer = await state.pc.createAnswer();
-            await state.pc.setLocalDescription(answer);
-
-            // 4. Wait for ICE gathering — short timeout to keep it snappy
-            await waitForICE(2000);
-
-            // 5. Post answer + our ICE candidates to signalling server
-            await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({
-                    answer: state.pc.localDescription.sdp,
-                    ice:    receiverCandidates
-                })
-            });
-
-            statusMsg.textContent = 'Connected!';
-        }
-
-        function waitForICE(timeoutMs) {
-            return new Promise((resolve) => {
-                if (state.pc.iceGatheringState === 'complete') { resolve(); return; }
-                const check = () => {
-                    if (state.pc.iceGatheringState === 'complete') {
-                        state.pc.removeEventListener('icegatheringstatechange', check);
-                        resolve();
-                    }
-                };
-                state.pc.addEventListener('icegatheringstatechange', check);
-                setTimeout(() => {
+    function waitForICE(timeoutMs) {
+        return new Promise((resolve) => {
+            if (!state.pc || state.pc.iceGatheringState === 'complete') { resolve(); return; }
+            const check = () => {
+                if (state.pc?.iceGatheringState === 'complete') {
                     state.pc.removeEventListener('icegatheringstatechange', check);
                     resolve();
-                }, timeoutMs);
-            });
-        }
-
-        // ── Remote control messages FROM extension → update receiver UI ────────
-        function handleRemoteControl(msg) {
-            switch (msg.type) {
-                case 'togglePlayPause':
-                    if (videoEl.paused) { videoEl.play(); flashPlayPause('▶'); }
-                    else                { videoEl.pause(); flashPlayPause('⏸'); }
-                    showOverlay();
-                    break;
-                case 'play':
-                    videoEl.play(); flashPlayPause('▶'); showOverlay(); break;
-                case 'pause':
-                    videoEl.pause(); flashPlayPause('⏸'); showOverlay(); break;
-                case 'seek':
-                    videoEl.currentTime = msg.time; showOverlay(); break;
-                case 'seekRelative':
-                    videoEl.currentTime = Math.max(0, Math.min(
-                        videoEl.duration || 0, videoEl.currentTime + msg.seconds
-                    ));
-                    flashSeek(msg.seconds); showOverlay(); break;
-                case 'volume':
-                    videoEl.volume = Math.max(0, Math.min(1, msg.volume)); break;
-                case 'metadata':
-                    mediaTitle.textContent = msg.title; break;
-            }
-        }
-
-        // ── Keyboard shortcuts ────────────────────────────────────────────────
-        document.addEventListener('keydown', e => {
-            switch (e.key) {
-                case ' ':
-                case 'Enter':
-                    sendToExtension({ type: 'togglePlayPause' });
-                    flashPlayPause(videoEl.paused ? '▶' : '⏸');
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-                case 'ArrowLeft':
-                    sendToExtension({ type: 'seekRelative', seconds: -5 });
-                    flashSeek(-5); showOverlay();
-                    e.preventDefault();
-                    break;
-                case 'ArrowRight':
-                    sendToExtension({ type: 'seekRelative', seconds: 5 });
-                    flashSeek(5); showOverlay();
-                    e.preventDefault();
-                    break;
-                case 'ArrowUp':
-                    sendToExtension({ type: 'volumeUp' });
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-                case 'ArrowDown':
-                    sendToExtension({ type: 'volumeDown' });
-                    showOverlay();
-                    e.preventDefault();
-                    break;
-            }
+                }
+            };
+            state.pc.addEventListener('icegatheringstatechange', check);
+            setTimeout(() => {
+                state.pc?.removeEventListener('icegatheringstatechange', check);
+                resolve();
+            }, timeoutMs);
         });
+    }
 
-        // ── Overlay ───────────────────────────────────────────────────────────
-        function showOverlay() {
-            overlay.classList.add('visible');
-            state.overlayVisible = true;
-            clearTimeout(state.hideTimer);
-            state.hideTimer = setTimeout(() => {
-                overlay.classList.remove('visible');
-                state.overlayVisible = false;
-            }, 5000);
+    // ── Remote control from extension ─────────────────────────────────────────
+    function handleRemoteControl(msg) {
+        switch (msg.type) {
+            case 'togglePlayPause':
+                if (videoEl.paused) { videoEl.play(); flashPlayPause('▶'); }
+                else                { videoEl.pause(); flashPlayPause('⏸'); }
+                showOverlay(); break;
+            case 'play':
+                videoEl.play(); flashPlayPause('▶'); showOverlay(); break;
+            case 'pause':
+                videoEl.pause(); flashPlayPause('⏸'); showOverlay(); break;
+            case 'seek':
+                videoEl.currentTime = msg.time; showOverlay(); break;
+            case 'seekRelative':
+                videoEl.currentTime = Math.max(0, Math.min(
+                    videoEl.duration || 0, videoEl.currentTime + msg.seconds
+                ));
+                flashSeek(msg.seconds); showOverlay(); break;
+            case 'volume':
+                videoEl.volume = Math.max(0, Math.min(1, msg.volume)); break;
+            case 'metadata':
+                mediaTitle.textContent = msg.title; break;
         }
+    }
 
-        videoEl.addEventListener('timeupdate', () => {
-            const pct = videoEl.duration
-                ? (videoEl.currentTime / videoEl.duration) * 100 : 0;
-            progressFill.style.width  = pct + '%';
-            progressHandle.style.left = pct + '%';
-            currentTimeEl.textContent = formatTime(videoEl.currentTime);
-            durationEl.textContent    = formatTime(videoEl.duration);
-        });
-
-        videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
-        videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
-
-        function flashPlayPause(icon) {
-            playFlash.textContent = icon;
-            playFlash.classList.add('flash');
-            setTimeout(() => playFlash.classList.remove('flash'), 600);
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        switch (e.key) {
+            case ' ': case 'Enter':
+                sendToExtension({ type: 'togglePlayPause' });
+                flashPlayPause(videoEl.paused ? '▶' : '⏸');
+                showOverlay(); e.preventDefault(); break;
+            case 'ArrowLeft':
+                sendToExtension({ type: 'seekRelative', seconds: -5 });
+                flashSeek(-5); showOverlay(); e.preventDefault(); break;
+            case 'ArrowRight':
+                sendToExtension({ type: 'seekRelative', seconds: 5 });
+                flashSeek(5); showOverlay(); e.preventDefault(); break;
+            case 'ArrowUp':
+                sendToExtension({ type: 'volumeUp' });
+                showOverlay(); e.preventDefault(); break;
+            case 'ArrowDown':
+                sendToExtension({ type: 'volumeDown' });
+                showOverlay(); e.preventDefault(); break;
         }
+    });
 
-        function flashSeek(seconds) {
-            const el = seconds < 0 ? seekBack : seekFwd;
-            el.textContent = seconds < 0
-                ? `⏪ ${Math.abs(seconds)}s`
-                : `${seconds}s ⏩`;
-            el.classList.add('flash');
-            setTimeout(() => el.classList.remove('flash'), 600);
-        }
+    // ── Overlay ───────────────────────────────────────────────────────────────
+    function showOverlay() {
+        overlay.classList.add('visible');
+        clearTimeout(state.hideTimer);
+        state.hideTimer = setTimeout(() => overlay.classList.remove('visible'), 5000);
+    }
 
-        let toastTimer;
-        function showToast(msg) {
-            toast.textContent = msg;
-            toast.classList.add('show');
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+    videoEl.addEventListener('timeupdate', () => {
+        const pct = videoEl.duration
+            ? (videoEl.currentTime / videoEl.duration) * 100 : 0;
+        progressFill.style.width  = pct + '%';
+        progressHandle.style.left = pct + '%';
+        currentTimeEl.textContent = formatTime(videoEl.currentTime);
+        durationEl.textContent    = formatTime(videoEl.duration);
+    });
 
-        function formatTime(s) {
-            if (!s || isNaN(s)) return '0:00';
-            const h   = Math.floor(s / 3600);
-            const m   = Math.floor((s % 3600) / 60);
-            const sec = Math.floor(s % 60);
-            if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
-            return `${m}:${sec.toString().padStart(2,'0')}`;
-        }
+    videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
+    videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
-        init();
-    })();
-    </script>
+    function flashPlayPause(icon) {
+        playFlash.textContent = icon;
+        playFlash.classList.add('flash');
+        setTimeout(() => playFlash.classList.remove('flash'), 600);
+    }
+
+    function flashSeek(seconds) {
+        const el = seconds < 0 ? seekBack : seekFwd;
+        el.textContent = seconds < 0 ? `⏪ ${Math.abs(seconds)}s` : `${seconds}s ⏩`;
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 600);
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function formatTime(s) {
+        if (!s || isNaN(s)) return '0:00';
+        const h   = Math.floor(s / 3600);
+        const m   = Math.floor((s % 3600) / 60);
+        const sec = Math.floor(s % 60);
+        if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        return `${m}:${sec.toString().padStart(2,'0')}`;
+    }
+
+    init();
+})();
+</script>
 </body>
 </html>
