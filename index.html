@@ -18,195 +18,62 @@
             --accent: #e8ff47;
         }
 
-        html, body {
-            width: 100%; height: 100%;
-            background: #000;
-            overflow: hidden;
-            font-family: 'DM Sans', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-
+        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
         body { cursor: none; }
         body.cursor-visible { cursor: default; }
 
         #videoEl {
-            position: fixed; inset: 0;
-            width: 100%; height: 100%;
-            object-fit: contain;
-            background: #000;
-            z-index: 0;
+            position: fixed; inset: 0; width: 100%; height: 100%;
+            object-fit: contain; background: #000; z-index: 0;
         }
 
         /* ── Waiting screen ── */
         #waitingScreen {
-            position: fixed; inset: 0;
-            background: #000;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            z-index: 50;
+            position: fixed; inset: 0; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50;
         }
-
         #waitingScreen::before {
-            content: '';
-            position: absolute; inset: 0;
-            background: repeating-linear-gradient(
-                0deg, transparent, transparent 2px,
-                rgba(255,255,255,0.012) 2px,
-                rgba(255,255,255,0.012) 4px
-            );
+            content: ''; position: absolute; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px);
             pointer-events: none;
         }
-
-        .wt-logo {
-            font-size: 10px; font-weight: 600; letter-spacing: 8px;
-            color: var(--dim); text-transform: uppercase; margin-bottom: 52px;
-            position: relative; z-index: 1;
-        }
-
-        .wt-card {
-            background: var(--glass); border: 1px solid var(--glass-border);
-            border-radius: 20px; padding: 48px 64px;
-            display: flex; flex-direction: column; align-items: center; gap: 6px;
-            min-width: 420px; position: relative; z-index: 1;
-        }
-
-        .wt-label {
-            font-size: 10px; letter-spacing: 3px; color: var(--dim);
-            text-transform: uppercase; margin-bottom: 8px;
-        }
-
-        #codeEl {
-            font-family: 'DM Mono', monospace; font-size: 64px; font-weight: 500;
-            color: var(--white); letter-spacing: 8px; line-height: 1; margin-bottom: 10px;
-        }
-
-        .wt-sublabel {
-            font-size: 10px; letter-spacing: 2px; color: var(--dimmer); text-transform: uppercase;
-        }
-
+        .wt-logo { font-size: 10px; font-weight: 600; letter-spacing: 8px; color: var(--dim); text-transform: uppercase; margin-bottom: 52px; position: relative; z-index: 1; }
+        .wt-card { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px; padding: 48px 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 420px; position: relative; z-index: 1; }
+        .wt-label { font-size: 10px; letter-spacing: 3px; color: var(--dim); text-transform: uppercase; margin-bottom: 8px; }
+        #codeEl { font-family: 'DM Mono', monospace; font-size: 64px; font-weight: 500; color: var(--white); letter-spacing: 8px; line-height: 1; margin-bottom: 10px; }
+        .wt-sublabel { font-size: 10px; letter-spacing: 2px; color: var(--dimmer); text-transform: uppercase; }
         .wt-divider { width: 1px; height: 28px; background: var(--glass-border); margin: 22px 0; }
-
         #statusMsg { font-size: 13px; color: var(--dim); letter-spacing: 0.5px; }
-
         .quality-row { display: flex; gap: 8px; margin-top: 20px; }
-
-        .q-pill {
-            font-size: 11px; font-weight: 500; letter-spacing: 1px;
-            color: var(--dim); border: 1px solid var(--glass-border);
-            background: transparent; border-radius: 20px;
-            padding: 6px 14px; cursor: pointer;
-            transition: all 0.15s ease; font-family: 'DM Sans', sans-serif;
-        }
+        .q-pill { font-size: 11px; font-weight: 500; letter-spacing: 1px; color: var(--dim); border: 1px solid var(--glass-border); background: transparent; border-radius: 20px; padding: 6px 14px; cursor: pointer; transition: all 0.15s ease; font-family: 'DM Sans', sans-serif; }
         .q-pill:hover { border-color: var(--dim); color: var(--white); }
         .q-pill.active { background: var(--white); color: #000; border-color: var(--white); }
-
-        .wt-hint {
-            font-size: 10px; letter-spacing: 1.5px; color: var(--dimmer);
-            text-transform: uppercase; margin-top: 16px;
-        }
-
+        .wt-hint { font-size: 10px; letter-spacing: 1.5px; color: var(--dimmer); text-transform: uppercase; margin-top: 16px; }
         .dot-loader { display: flex; gap: 8px; margin-top: 14px; }
-        .dot-loader span {
-            width: 5px; height: 5px; background: var(--dimmer);
-            border-radius: 50%; animation: dotPulse 1.6s ease-in-out infinite;
-        }
+        .dot-loader span { width: 5px; height: 5px; background: var(--dimmer); border-radius: 50%; animation: dotPulse 1.6s ease-in-out infinite; }
         .dot-loader span:nth-child(2) { animation-delay: 0.25s; }
         .dot-loader span:nth-child(3) { animation-delay: 0.5s; }
-
-        @keyframes dotPulse {
-            0%,80%,100% { transform:scale(0.5); opacity:0.3; }
-            40%          { transform:scale(1);   opacity:1; }
-        }
-
-        /* ── Buffering spinner ── */
-        #bufferingEl {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            display: none; flex-direction: column; align-items: center; gap: 14px;
-            z-index: 25;
-        }
-        #bufferingEl.show { display: flex; }
-
-        .spinner {
-            width: 48px; height: 48px;
-            border: 3px solid var(--dimmer);
-            border-top-color: var(--white);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-        .spinner-label {
-            font-size: 12px; letter-spacing: 2px; color: var(--dim);
-            text-transform: uppercase;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ── Buffer bar ── */
-        #bufferBar {
-            position: fixed; top: 0; left: 0; right: 0; height: 2px;
-            background: transparent; z-index: 40;
-        }
-        #bufferFill {
-            height: 100%; background: var(--accent);
-            width: 0%; transition: width 0.3s ease;
-        }
+        @keyframes dotPulse { 0%,80%,100% { transform:scale(0.5); opacity:0.3; } 40% { transform:scale(1); opacity:1; } }
 
         /* ── Overlay ── */
-        #overlay {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            padding: 0 64px 52px;
-            background: linear-gradient(transparent, rgba(0,0,0,0.92) 60%);
-            transform: translateY(100%);
-            transition: transform 0.35s cubic-bezier(.4,0,.2,1);
-            z-index: 20;
-        }
+        #overlay { position: fixed; bottom: 0; left: 0; right: 0; padding: 0 64px 52px; background: linear-gradient(transparent, rgba(0,0,0,0.92) 60%); transform: translateY(100%); transition: transform 0.35s cubic-bezier(.4,0,.2,1); z-index: 20; }
         #overlay.visible { transform: translateY(0); }
-
-        #mediaTitle {
-            font-size: 26px; font-weight: 600; color: var(--white);
-            margin-bottom: 22px; white-space: nowrap;
-            overflow: hidden; text-overflow: ellipsis;
-        }
-
-        .progress-wrapper {
-            position: relative; width: 100%; height: 3px;
-            background: var(--dimmer); border-radius: 2px; margin-bottom: 18px;
-        }
-
+        #mediaTitle { font-size: 26px; font-weight: 600; color: var(--white); margin-bottom: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .progress-wrapper { position: relative; width: 100%; height: 3px; background: var(--dimmer); border-radius: 2px; margin-bottom: 18px; }
         #progressFill { height: 100%; background: var(--white); border-radius: 2px; width: 0%; transition: width 0.5s linear; }
-        #progressHandle {
-            position: absolute; top: 50%;
-            transform: translate(-50%,-50%) scale(0);
-            width: 14px; height: 14px; background: var(--white); border-radius: 50%;
-            transition: transform 0.2s ease, left 0.5s linear;
-        }
+        #progressHandle { position: absolute; top: 50%; transform: translate(-50%,-50%) scale(0); width: 14px; height: 14px; background: var(--white); border-radius: 50%; transition: transform 0.2s ease, left 0.5s linear; }
         #overlay.visible #progressHandle { transform: translate(-50%,-50%) scale(1); }
-
         .controls-row { display: flex; align-items: center; justify-content: space-between; }
-
         .time-display { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--dim); min-width: 130px; }
         #playStateEl { font-size: 20px; color: var(--dim); }
         #qualityBadge { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: var(--dimmer); text-transform: uppercase; min-width: 130px; text-align: right; }
 
         /* ── Quality panel ── */
-        #qualityPanel {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%) scale(0.92);
-            background: rgba(10,10,10,0.92); backdrop-filter: blur(24px);
-            border: 1px solid var(--glass-border); border-radius: 20px;
-            padding: 32px 40px; z-index: 80;
-            opacity: 0; pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            min-width: 320px;
-        }
+        #qualityPanel { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.92); background: rgba(10,10,10,0.92); backdrop-filter: blur(24px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 32px 40px; z-index: 80; opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; min-width: 320px; }
         #qualityPanel.visible { opacity: 1; pointer-events: all; transform: translate(-50%, -50%) scale(1); }
         #qualityPanel h3 { font-size: 11px; letter-spacing: 3px; color: var(--dim); text-transform: uppercase; margin-bottom: 20px; text-align: center; }
         .qp-options { display: flex; flex-direction: column; gap: 8px; }
-        .qp-option {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 18px; border-radius: 12px; border: 1px solid var(--glass-border);
-            cursor: pointer; background: transparent; color: var(--white);
-            font-family: 'DM Sans', sans-serif; font-size: 14px; transition: all 0.15s ease;
-        }
+        .qp-option { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--glass-border); cursor: pointer; background: transparent; color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px; transition: all 0.15s ease; }
         .qp-option:hover { background: var(--glass); border-color: var(--dim); }
         .qp-option.active { background: var(--white); color: #000; border-color: var(--white); }
         .qp-option.active .qp-desc { color: rgba(0,0,0,0.5); }
@@ -214,51 +81,26 @@
         .qp-desc { font-size: 12px; color: var(--dim); }
         #qualityPanel .qp-hint { font-size: 10px; letter-spacing: 1.5px; color: var(--dimmer); text-transform: uppercase; text-align: center; margin-top: 18px; }
 
-        /* ── Seek / flash ── */
-        .seek-indicator {
-            position: fixed; top: 50%; transform: translateY(-50%);
-            background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
-            border: 1px solid var(--glass-border); color: var(--white);
-            font-size: 18px; font-weight: 600; padding: 16px 28px;
-            border-radius: 14px; opacity: 0; transition: opacity 0.15s ease;
-            pointer-events: none; z-index: 30;
-        }
+        /* ── Indicators ── */
+        .seek-indicator { position: fixed; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); border: 1px solid var(--glass-border); color: var(--white); font-size: 18px; font-weight: 600; padding: 16px 28px; border-radius: 14px; opacity: 0; transition: opacity 0.15s ease; pointer-events: none; z-index: 30; }
         #seekBack { left: 72px; }
         #seekFwd  { right: 72px; }
         .seek-indicator.flash { opacity: 1; }
-
-        #playFlash {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            font-size: 64px; color: var(--white); opacity: 0;
-            pointer-events: none; z-index: 30; transition: opacity 0.15s ease;
-            text-shadow: 0 4px 32px rgba(0,0,0,0.9);
-        }
+        #playFlash { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 64px; color: var(--white); opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.15s ease; text-shadow: 0 4px 32px rgba(0,0,0,0.9); }
         #playFlash.flash { opacity: 1; }
 
         /* ── Toast ── */
-        #toast {
-            position: fixed; top: 36px; left: 50%;
-            transform: translateX(-50%) translateY(-72px);
-            background: rgba(15,15,15,0.9); backdrop-filter: blur(16px);
-            color: var(--white); padding: 11px 26px; border-radius: 40px;
-            font-size: 13px; transition: transform 0.4s cubic-bezier(.4,0,.2,1);
-            z-index: 90; border: 1px solid var(--glass-border); white-space: nowrap;
-        }
+        #toast { position: fixed; top: 36px; left: 50%; transform: translateX(-50%) translateY(-72px); background: rgba(15,15,15,0.9); backdrop-filter: blur(16px); color: var(--white); padding: 11px 26px; border-radius: 40px; font-size: 13px; transition: transform 0.4s cubic-bezier(.4,0,.2,1); z-index: 90; border: 1px solid var(--glass-border); white-space: nowrap; }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
-        #connectedBar {
-            position: fixed; top: 0; left: 0; right: 0; height: 2px;
-            background: var(--accent); transform: scaleX(0);
-            transform-origin: left; transition: transform 0.6s cubic-bezier(.4,0,.2,1); z-index: 40;
-        }
+        #connectedBar { position: fixed; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 0.6s cubic-bezier(.4,0,.2,1); z-index: 40; }
         #connectedBar.show { transform: scaleX(1); }
 
-        /* ── Latency badge ── */
-        #latencyBadge {
-            position: fixed; top: 18px; right: 24px;
-            font-size: 11px; font-family: 'DM Mono', monospace;
-            color: var(--dimmer); z-index: 30;
-        }
+        #unmuteBtn { position: fixed; bottom: 40px; right: 40px; background: rgba(15,15,15,0.85); backdrop-filter: blur(16px); border: 1px solid var(--glass-border); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 40px; cursor: pointer; z-index: 60; display: none; }
+        #unmuteBtn:hover { background: rgba(40,40,40,0.9); }
+
+        /* ── Stats badge (dev info) ── */
+        #statsBadge { position: fixed; top: 18px; right: 24px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--dimmer); z-index: 30; text-align: right; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -280,21 +122,16 @@
             <button class="q-pill" data-q="1440p">1440p</button>
             <button class="q-pill" data-q="4k">4K</button>
         </div>
-        <p class="wt-hint">~5s latency · full quality chunks</p>
+        <p class="wt-hint">Press Q during stream to change</p>
     </div>
 </div>
 
 <div id="connectedBar"></div>
-<div id="bufferBar"><div id="bufferFill"></div></div>
 <div id="toast"></div>
-<div id="latencyBadge"></div>
+<div id="statsBadge"></div>
 
-<video id="videoEl" autoplay playsinline></video>
-
-<div id="bufferingEl">
-    <div class="spinner"></div>
-    <div class="spinner-label">Buffering…</div>
-</div>
+<video id="videoEl" autoplay playsinline muted></video>
+<button id="unmuteBtn">🔊 Tap to enable audio</button>
 
 <div id="playFlash">▶</div>
 <div class="seek-indicator" id="seekBack">⏪ 5s</div>
@@ -318,11 +155,7 @@
         <div id="progressHandle"></div>
     </div>
     <div class="controls-row">
-        <span class="time-display">
-            <span id="currentTimeEl">0:00</span>
-            <span style="color:var(--dimmer)"> / </span>
-            <span id="durationEl">0:00</span>
-        </span>
+        <span class="time-display"><span id="currentTimeEl">0:00</span><span style="color:var(--dimmer)"> / </span><span id="durationEl">0:00</span></span>
         <span id="playStateEl">▶</span>
         <span id="qualityBadge">1080p</span>
     </div>
@@ -330,10 +163,14 @@
 
 <script>
 (() => {
-    // ── Config ────────────────────────────────────────────────────────────────
-    const WS_BASE         = location.origin.replace(/^http/, 'ws') + '/api/ws';
-    const MIN_BUFFER_CHUNKS = 2;   // chunks to pre-buffer before starting playback
-    const MAX_QUEUE_CHUNKS  = 6;   // max chunks held in memory
+    const SIGNAL = '/api/signal';
+
+    const QUALITY_PRESETS = {
+        '720p':  { label: '720p',  width: 1280,  height: 720,  bitrate: 6_000_000  },
+        '1080p': { label: '1080p', width: 1920,  height: 1080, bitrate: 15_000_000 },
+        '1440p': { label: '1440p', width: 2560,  height: 1440, bitrate: 25_000_000 },
+        '4k':    { label: '4K',    width: 3840,  height: 2160, bitrate: 45_000_000 },
+    };
 
     // ── DOM ───────────────────────────────────────────────────────────────────
     const codeEl         = document.getElementById('codeEl');
@@ -353,40 +190,158 @@
     const seekFwd        = document.getElementById('seekFwd');
     const toast          = document.getElementById('toast');
     const connectedBar   = document.getElementById('connectedBar');
-    const bufferingEl    = document.getElementById('bufferingEl');
-    const bufferFill     = document.getElementById('bufferFill');
-    const latencyBadge   = document.getElementById('latencyBadge');
+    const unmuteBtn      = document.getElementById('unmuteBtn');
     const qualityPanel   = document.getElementById('qualityPanel');
+    const statsBadge     = document.getElementById('statsBadge');
 
-    // ── State ─────────────────────────────────────────────────────────────────
     const state = {
-        code:              null,
-        ws:                null,
-        mediaSource:       null,
-        sourceBuffer:      null,
-        chunkQueue:        [],     // ArrayBuffers waiting to be appended
-        appendingChunk:    false,  // true while sourceBuffer.appendBuffer is running
-        bufferedChunks:    0,      // chunks appended since last session reset
-        currentSessionId:  null,
-        isPlaying:         false,
-        isPaused:          false,  // paused by remote command
-        isSeeking:         false,  // mid-seek flush
-        quality:           '1080p',
-        qualityPanelOpen:  false,
-        hideTimer:         null,
-        lastChunkTime:     0,
-        totalBytesReceived: 0,
+        code:            null,
+        pc:              null,
+        dc:              null,
+        pollTimer:       null,
+        hideTimer:       null,
+        quality:         '1080p',
+        qualityOpen:     false,
+        statsTimer:      null,
     };
 
+    // ── Quality ───────────────────────────────────────────────────────────────
+
+    function setQuality(q, notify = true) {
+        if (!QUALITY_PRESETS[q]) return;
+        state.quality = q;
+        document.querySelectorAll('.q-pill, .qp-option').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.q === q);
+        });
+        qualityBadge.textContent = QUALITY_PRESETS[q].label;
+        if (notify) {
+            sendToExtension({ type: 'setQuality', quality: q, preset: QUALITY_PRESETS[q] });
+            showToast(`Quality → ${QUALITY_PRESETS[q].label}`);
+        }
+    }
+
+    document.querySelectorAll('.q-pill').forEach(btn => btn.addEventListener('click', () => setQuality(btn.dataset.q)));
+    document.querySelectorAll('.qp-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setQuality(btn.dataset.q);
+            setTimeout(() => closeQualityPanel(), 300);
+        });
+    });
+
+    function openQualityPanel()  { state.qualityOpen = true;  qualityPanel.classList.add('visible'); }
+    function closeQualityPanel() { state.qualityOpen = false; qualityPanel.classList.remove('visible'); }
+
+    // ── Jitter buffer — zeroed on both track and connection level ─────────────
+
+    function zapJitterBuffer() {
+        if (!state.pc) return;
+        state.pc.getReceivers().forEach(receiver => {
+            if (receiver.track?.kind !== 'video') return;
+            // jitterBufferTarget = 0 — tells Chrome to play as soon as frame arrives
+            // playoutDelayHint   = 0 — additional hint to the renderer
+            // Both needed — one affects the jitter buffer, one affects the playout pipeline
+            try {
+                if ('jitterBufferTarget'   in receiver) receiver.jitterBufferTarget   = 0;
+                if ('playoutDelayHint'     in receiver) receiver.playoutDelayHint     = 0;
+                if ('jitterBufferDelayHint' in receiver) receiver.jitterBufferDelayHint = 0;
+            } catch (e) { console.warn('[receiver] jitter buffer hint error:', e); }
+        });
+    }
+
+    // ── Drift corrector ───────────────────────────────────────────────────────
+    // WebRTC buffers can creep forward over time even with jitter hints set.
+    // We check every 500ms and snap back to live edge if we're more than
+    // MAX_DRIFT seconds behind.
+
+    const MAX_DRIFT = 0.15; // seconds — tighter than before (was 0.3)
+
+    function startDriftCorrector() {
+        setInterval(() => {
+            if (videoEl.paused || !videoEl.buffered.length) return;
+            const liveEdge = videoEl.buffered.end(videoEl.buffered.length - 1);
+            const drift    = liveEdge - videoEl.currentTime;
+            if (drift > MAX_DRIFT) {
+                // Snap to 50ms before live edge — keeps playback smooth
+                videoEl.currentTime = liveEdge - 0.05;
+            }
+        }, 500);
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    // Shows live bitrate + resolution in the corner so you can see
+    // whether GCC is throttling the encoder
+
+    function startStatsLoop() {
+        clearInterval(state.statsTimer);
+        state.statsTimer = setInterval(async () => {
+            if (!state.pc || state.pc.connectionState !== 'connected') return;
+            try {
+                const stats = await state.pc.getStats();
+                let bitrate = 0, width = 0, height = 0, fps = 0;
+                let prevBytes = state._prevBytes || 0;
+                let prevTs    = state._prevTs    || 0;
+
+                stats.forEach(report => {
+                    if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                        const now   = report.timestamp;
+                        const bytes = report.bytesReceived || 0;
+                        if (prevTs) {
+                            const elapsed = (now - prevTs) / 1000;
+                            bitrate = Math.round(((bytes - prevBytes) * 8) / elapsed / 1000);
+                        }
+                        state._prevBytes = bytes;
+                        state._prevTs    = now;
+                        fps    = Math.round(report.framesPerSecond || 0);
+                        width  = report.frameWidth  || 0;
+                        height = report.frameHeight || 0;
+                    }
+                });
+
+                if (bitrate > 0) {
+                    statsBadge.textContent = `${bitrate} kbps · ${width}×${height} · ${fps}fps`;
+                }
+            } catch (e) {}
+        }, 1500);
+    }
+
+    // ── Unmute ────────────────────────────────────────────────────────────────
+
+    function tryUnmute() {
+        videoEl.muted = false;
+        videoEl.play().then(() => {
+            unmuteBtn.style.display = 'none';
+        }).catch(() => {
+            videoEl.muted = true;
+            videoEl.play().catch(() => {});
+            unmuteBtn.style.display = 'block';
+        });
+    }
+
+    unmuteBtn.addEventListener('click', () => {
+        videoEl.muted = false;
+        videoEl.play().catch(() => {});
+        unmuteBtn.style.display = 'none';
+    });
+
+    // ── Send to extension ─────────────────────────────────────────────────────
+
+    function sendToExtension(data) {
+        if (state.dc?.readyState === 'open') {
+            state.dc.send(JSON.stringify(data));
+        }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
-    function init() {
+
+    async function init() {
         state.code = sessionStorage.getItem('cf_code') || makeCode();
         sessionStorage.setItem('cf_code', state.code);
         codeEl.textContent    = state.code;
         statusMsg.textContent = 'Waiting for device…';
-        connectWS();
-        setupKeyboard();
-        setupQualityButtons();
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+        pollForOffer();
+        startDriftCorrector();
     }
 
     function makeCode() {
@@ -394,341 +349,192 @@
         return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     }
 
-    // ── WebSocket ─────────────────────────────────────────────────────────────
-    function connectWS() {
-        const url = `${WS_BASE}?code=${state.code}&role=receiver`;
-        state.ws = new WebSocket(url);
-        state.ws.binaryType = 'arraybuffer';
+    // ── Poll for offer ────────────────────────────────────────────────────────
 
-        state.ws.onopen = () => {
-            console.log('[receiver] WS open');
-            statusMsg.textContent = 'Connected — waiting for stream…';
-        };
-
-        state.ws.onmessage = (ev) => {
-            if (ev.data instanceof ArrayBuffer) {
-                handleChunk(ev.data);
-            } else {
-                try { handleControl(JSON.parse(ev.data)); } catch (e) {}
+    async function pollForOffer() {
+        try {
+            const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
+            const data = await res.json();
+            if (data.offer) {
+                clearTimeout(state.pollTimer);
+                statusMsg.textContent = 'Device found — connecting…';
+                await handleOffer(data.offer, data.ice_caster || []);
+                return;
             }
-        };
-
-        state.ws.onclose = () => {
-            console.log('[receiver] WS closed');
-            setTimeout(connectWS, 2000);
-        };
-
-        state.ws.onerror = (e) => console.error('[receiver] WS error', e);
+        } catch (e) { console.warn('[receiver] poll error:', e); }
+        state.pollTimer = setTimeout(pollForOffer, 1500);
     }
 
-    // ── Control messages from caster ──────────────────────────────────────────
-    function handleControl(msg) {
-        console.log('[receiver] control:', msg.type);
+    // ── Handle offer ──────────────────────────────────────────────────────────
 
-        switch (msg.type) {
-            case 'caster_hello':
-                state.currentSessionId = msg.sessionId;
-                statusMsg.textContent  = 'Caster connected — buffering…';
-                resetMediaSource();
-                break;
+    async function handleOffer(offer, iceCandidates) {
+        if (state.pc) { state.pc.close(); state.pc = null; }
 
-            case 'caster_connected':
-                statusMsg.textContent = 'Device found — waiting for stream…';
-                break;
+        state.pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ],
+            bundlePolicy:  'max-bundle',
+            rtcpMuxPolicy: 'require',
+        });
 
-            case 'caster_disconnected':
+        // Data channel for remote control
+        state.pc.ondatachannel = (e) => {
+            state.dc = e.channel;
+            state.dc.onopen = () => {
+                console.log('[receiver] dc open');
+                // Send current quality preference immediately
+                sendToExtension({ type: 'setQuality', quality: state.quality, preset: QUALITY_PRESETS[state.quality] });
+            };
+            state.dc.onmessage = (ev) => {
+                try { handleRemoteControl(JSON.parse(ev.data)); }
+                catch (err) { console.error('[receiver] dc parse error:', err); }
+            };
+        };
+
+        const receiverCandidates = [];
+        state.pc.onicecandidate = (e) => {
+            if (e.candidate) receiverCandidates.push(e.candidate);
+        };
+
+        state.pc.ontrack = (e) => {
+            const stream = e.streams?.[0];
+            if (!stream) return;
+
+            videoEl.srcObject = stream;
+
+            // Zero jitter buffer immediately on track arrival
+            zapJitterBuffer();
+
+            videoEl.play().then(() => {
+                // Try unmuting after a short delay so autoplay policy is satisfied
+                setTimeout(tryUnmute, 300);
+            }).catch(() => {
+                unmuteBtn.style.display = 'block';
+            });
+
+            waitingScreen.style.display = 'none';
+            connectedBar.classList.add('show');
+            showToast('🎬 Stream started');
+            startStatsLoop();
+        };
+
+        state.pc.onconnectionstatechange = () => {
+            const cs = state.pc?.connectionState;
+            console.log('[receiver] connection state:', cs);
+
+            if (cs === 'connected') {
+                // Re-zero jitter buffer after full connection
+                // (Chrome sometimes resets it during ICE)
+                zapJitterBuffer();
+            }
+
+            if (cs === 'disconnected' || cs === 'failed') {
                 showToast('📵 Device disconnected');
                 connectedBar.classList.remove('show');
                 waitingScreen.style.display = 'flex';
                 statusMsg.textContent = 'Waiting for device…';
-                state.isPlaying = false;
-                resetMediaSource();
-                break;
+                videoEl.srcObject = null;
+                state.pc = null; state.dc = null;
+                unmuteBtn.style.display = 'none';
+                clearInterval(state.statsTimer);
+                statsBadge.textContent = '';
+                closeQualityPanel();
 
-            case 'pause':
-                // Hard pause — stop mid-clip immediately
-                videoEl.pause();
-                state.isPaused = true;
-                flashPlayPause('⏸');
-                showOverlay();
-                break;
+                fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+                pollForOffer();
+            }
+        };
 
-            case 'resume':
-                state.isPaused = false;
-                // Only resume if we have enough buffer
-                if (state.bufferedChunks >= MIN_BUFFER_CHUNKS || state.chunkQueue.length >= MIN_BUFFER_CHUNKS) {
-                    videoEl.play().catch(() => {});
-                    flashPlayPause('▶');
-                } else {
-                    // Not enough buffer yet — show spinner, auto-play when ready
-                    showBuffering(true);
+        await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
+        for (const c of iceCandidates) await state.pc.addIceCandidate(c).catch(() => {});
+
+        const answer = await state.pc.createAnswer();
+        await state.pc.setLocalDescription(answer);
+        await waitForICE(2500);
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ answer: state.pc.localDescription.sdp, ice: receiverCandidates }),
+        });
+
+        statusMsg.textContent = 'Connected!';
+    }
+
+    function waitForICE(timeoutMs) {
+        return new Promise((resolve) => {
+            if (!state.pc || state.pc.iceGatheringState === 'complete') { resolve(); return; }
+            const check = () => {
+                if (state.pc?.iceGatheringState === 'complete') {
+                    state.pc.removeEventListener('icegatheringstatechange', check);
+                    resolve();
                 }
-                showOverlay();
-                break;
+            };
+            state.pc.addEventListener('icegatheringstatechange', check);
+            setTimeout(() => { state.pc?.removeEventListener('icegatheringstatechange', check); resolve(); }, timeoutMs);
+        });
+    }
 
-            case 'seek_flush':
-                // Caster is seeking — clear everything and wait for new session
-                console.log('[receiver] seek flush, new session:', msg.newSessionId);
-                state.isSeeking       = true;
-                state.currentSessionId = msg.newSessionId;
-                videoEl.pause();
-                showBuffering(true);
-                showToast('⏩ Seeking…');
-                resetMediaSource();
-                state.bufferedChunks = 0;
-                state.chunkQueue     = [];
-                break;
+    // ── Remote control from extension ─────────────────────────────────────────
 
-            case 'seek_ready':
-                // Caster restarted recording from new position
-                // We'll auto-play once MIN_BUFFER_CHUNKS arrive
-                state.isSeeking = false;
-                console.log('[receiver] seek ready, buffering new chunks');
-                break;
-
+    function handleRemoteControl(msg) {
+        switch (msg.type) {
+            case 'togglePlayPause':
+                if (videoEl.paused) { videoEl.play(); flashPlayPause('▶'); }
+                else                { videoEl.pause(); flashPlayPause('⏸'); }
+                showOverlay(); break;
+            case 'play':   videoEl.play();  flashPlayPause('▶'); showOverlay(); break;
+            case 'pause':  videoEl.pause(); flashPlayPause('⏸'); showOverlay(); break;
+            case 'seek':
+                videoEl.currentTime = msg.time; showOverlay(); break;
+            case 'seekRelative':
+                videoEl.currentTime = Math.max(0, Math.min(videoEl.duration || 0, videoEl.currentTime + msg.seconds));
+                flashSeek(msg.seconds); showOverlay(); break;
+            case 'volume':
+                videoEl.volume = Math.max(0, Math.min(1, msg.volume)); break;
             case 'metadata':
-                mediaTitle.textContent = msg.title || '—';
-                break;
+                mediaTitle.textContent = msg.title; break;
         }
     }
 
-    // ── Chunk handling ────────────────────────────────────────────────────────
-    function handleChunk(arrayBuf) {
-        if (arrayBuf.byteLength < 8) return;
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
-        // Parse 8-byte header
-        const view      = new DataView(arrayBuf);
-        const seq       = view.getUint32(0, false);
-        const sidHash   = view.getInt32(4, false);
-        const videoData = arrayBuf.slice(8);
-
-        state.totalBytesReceived += videoData.byteLength;
-        state.lastChunkTime = Date.now();
-
-        // Update latency badge with throughput
-        const kbps = Math.round(videoData.byteLength * 8 / 1000 / 5); // 5s chunks
-        latencyBadge.textContent = `${kbps} kbps`;
-
-        // Update buffer fill bar (visual: chunks/max)
-        const fillPct = Math.min(100, (state.bufferedChunks / MAX_QUEUE_CHUNKS) * 100);
-        bufferFill.style.width = fillPct + '%';
-
-        // Show waiting screen is gone — stream started
-        if (waitingScreen.style.display !== 'none') {
-            waitingScreen.style.display = 'none';
-            connectedBar.classList.add('show');
-            showToast('🎬 Stream started');
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Shift') {
+            document.body.classList.toggle('cursor-visible');
+            e.preventDefault(); return;
         }
-
-        // Queue chunk for appending
-        state.chunkQueue.push(videoData);
-        state.bufferedChunks++;
-
-        // If we now have enough buffer and aren't paused/seeking, start/resume playback
-        if (!state.isPaused && !state.isSeeking) {
-            if (!state.isPlaying && state.bufferedChunks >= MIN_BUFFER_CHUNKS) {
-                startPlayback();
-            } else if (state.isPlaying) {
-                showBuffering(false);
-            }
+        if (e.key === 'q' || e.key === 'Q') {
+            state.qualityOpen ? closeQualityPanel() : (openQualityPanel(), showOverlay());
+            e.preventDefault(); return;
         }
-
-        // If paused but had been waiting for buffer (seek recovery), check now
-        if (!state.isPaused && !state.isSeeking && state.bufferedChunks >= MIN_BUFFER_CHUNKS) {
-            showBuffering(false);
+        if (e.key === 'Escape') {
+            if (state.qualityOpen) { closeQualityPanel(); e.preventDefault(); return; }
         }
+        if (state.qualityOpen) return;
 
-        // Drain queue into MediaSource
-        drainQueue();
-    }
-
-    // ── MediaSource management ────────────────────────────────────────────────
-    function resetMediaSource() {
-        // Tear down existing MediaSource cleanly
-        if (state.mediaSource && state.mediaSource.readyState === 'open') {
-            try { state.mediaSource.endOfStream(); } catch (e) {}
+        switch (e.key) {
+            case ' ': case 'Enter':
+                sendToExtension({ type: 'togglePlayPause' });
+                flashPlayPause(videoEl.paused ? '▶' : '⏸');
+                showOverlay(); e.preventDefault(); break;
+            case 'ArrowLeft':
+                sendToExtension({ type: 'seekRelative', seconds: -5 });
+                flashSeek(-5); showOverlay(); e.preventDefault(); break;
+            case 'ArrowRight':
+                sendToExtension({ type: 'seekRelative', seconds: 5 });
+                flashSeek(5); showOverlay(); e.preventDefault(); break;
+            case 'ArrowUp':
+                sendToExtension({ type: 'volumeUp' }); showOverlay(); e.preventDefault(); break;
+            case 'ArrowDown':
+                sendToExtension({ type: 'volumeDown' }); showOverlay(); e.preventDefault(); break;
         }
-        state.mediaSource   = null;
-        state.sourceBuffer  = null;
-        state.appendingChunk = false;
-        state.chunkQueue    = [];
-        state.bufferedChunks = 0;
-        state.isPlaying     = false;
-        videoEl.src         = '';
-
-        initMediaSource();
-    }
-
-    function initMediaSource() {
-        const ms = new MediaSource();
-        state.mediaSource = ms;
-        videoEl.src = URL.createObjectURL(ms);
-
-        ms.addEventListener('sourceopen', () => {
-            // Try codecs in priority order
-            const mimeTypes = [
-                'video/webm;codecs=h264,opus',
-                'video/webm;codecs=vp9,opus',
-                'video/webm;codecs=vp8,opus',
-                'video/webm',
-            ];
-
-            let mime = null;
-            for (const m of mimeTypes) {
-                if (MediaSource.isTypeSupported(m)) { mime = m; break; }
-            }
-
-            if (!mime) {
-                console.error('[receiver] No supported mime type for MediaSource');
-                return;
-            }
-
-            try {
-                state.sourceBuffer = ms.addSourceBuffer(mime);
-                state.sourceBuffer.mode = 'sequence'; // append-only, no timestamps needed
-
-                state.sourceBuffer.addEventListener('updateend', () => {
-                    state.appendingChunk = false;
-                    drainQueue();
-                });
-
-                state.sourceBuffer.addEventListener('error', (e) => {
-                    console.error('[receiver] sourceBuffer error', e);
-                    state.appendingChunk = false;
-                });
-
-                console.log('[receiver] MediaSource ready, mime:', mime);
-            } catch (e) {
-                console.error('[receiver] addSourceBuffer failed', e);
-            }
-        }, { once: true });
-    }
-
-    function drainQueue() {
-        if (state.appendingChunk)    return;
-        if (!state.sourceBuffer)     return;
-        if (state.sourceBuffer.updating) return;
-        if (state.chunkQueue.length === 0) return;
-
-        // Trim old buffered data to avoid memory bloat
-        // Keep only last 30s of buffer
-        trimBuffer();
-
-        const chunk = state.chunkQueue.shift();
-        state.appendingChunk = true;
-
-        try {
-            state.sourceBuffer.appendBuffer(chunk);
-        } catch (e) {
-            console.error('[receiver] appendBuffer error', e);
-            state.appendingChunk = false;
-
-            // QuotaExceededError — trim aggressively and retry
-            if (e.name === 'QuotaExceededError') {
-                trimBuffer(true);
-                state.chunkQueue.unshift(chunk); // put it back
-            }
-        }
-    }
-
-    function trimBuffer(aggressive = false) {
-        if (!state.sourceBuffer || state.sourceBuffer.updating) return;
-        if (!videoEl.buffered.length) return;
-
-        const currentTime = videoEl.currentTime;
-        const keepFrom    = aggressive
-            ? currentTime - 5   // keep only 5s behind
-            : currentTime - 30; // keep 30s behind normally
-
-        if (keepFrom > 0) {
-            try {
-                state.sourceBuffer.remove(0, keepFrom);
-            } catch (e) {}
-        }
-    }
-
-    function startPlayback() {
-        state.isPlaying = true;
-        showBuffering(false);
-        videoEl.play().then(() => {
-            showOverlay();
-        }).catch((e) => {
-            console.warn('[receiver] play() failed:', e);
-        });
-    }
-
-    // ── Buffering UI ──────────────────────────────────────────────────────────
-    function showBuffering(show) {
-        bufferingEl.classList.toggle('show', show);
-    }
-
-    // ── Quality ───────────────────────────────────────────────────────────────
-    function setQuality(q) {
-        state.quality = q;
-        document.querySelectorAll('.q-pill, .qp-option').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.q === q);
-        });
-        qualityBadge.textContent = q.toUpperCase();
-        sendControl({ type: 'setQuality', quality: q });
-        showToast(`Quality → ${q}`);
-    }
-
-    function setupQualityButtons() {
-        document.querySelectorAll('.q-pill').forEach(btn => {
-            btn.addEventListener('click', () => setQuality(btn.dataset.q));
-        });
-        document.querySelectorAll('.qp-option').forEach(btn => {
-            btn.addEventListener('click', () => {
-                setQuality(btn.dataset.q);
-                setTimeout(() => qualityPanel.classList.remove('visible'), 300);
-            });
-        });
-    }
-
-    // ── Send control to caster ────────────────────────────────────────────────
-    function sendControl(data) {
-        if (state.ws?.readyState === WebSocket.OPEN) {
-            state.ws.send(JSON.stringify({ ...data, type: 'receiver_command', command: data, _control: true }));
-        }
-    }
-
-    // ── Keyboard ──────────────────────────────────────────────────────────────
-    function setupKeyboard() {
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Shift') {
-                document.body.classList.toggle('cursor-visible');
-                e.preventDefault(); return;
-            }
-            if (e.key === 'q' || e.key === 'Q') {
-                qualityPanel.classList.toggle('visible');
-                if (qualityPanel.classList.contains('visible')) showOverlay();
-                e.preventDefault(); return;
-            }
-            if (e.key === 'Escape') {
-                qualityPanel.classList.remove('visible'); return;
-            }
-            if (qualityPanel.classList.contains('visible')) return;
-
-            switch (e.key) {
-                case ' ': case 'Enter':
-                    sendControl({ type: 'togglePlayPause' });
-                    flashPlayPause(videoEl.paused ? '▶' : '⏸');
-                    showOverlay(); e.preventDefault(); break;
-                case 'ArrowLeft':
-                    sendControl({ type: 'seekRelative', seconds: -5 });
-                    flashSeek(-5); showOverlay(); e.preventDefault(); break;
-                case 'ArrowRight':
-                    sendControl({ type: 'seekRelative', seconds: 5 });
-                    flashSeek(5); showOverlay(); e.preventDefault(); break;
-                case 'ArrowUp':
-                    sendControl({ type: 'volumeUp' }); showOverlay(); e.preventDefault(); break;
-                case 'ArrowDown':
-                    sendControl({ type: 'volumeDown' }); showOverlay(); e.preventDefault(); break;
-            }
-        });
-    }
+    });
 
     // ── Overlay ───────────────────────────────────────────────────────────────
+
     function showOverlay() {
         overlay.classList.add('visible');
         clearTimeout(state.hideTimer);
@@ -743,14 +549,11 @@
         durationEl.textContent    = formatTime(videoEl.duration);
     });
 
-    videoEl.addEventListener('waiting', () => {
-        if (state.isPlaying && !state.isPaused) showBuffering(true);
-    });
-    videoEl.addEventListener('playing', () => showBuffering(false));
-    videoEl.addEventListener('play',    () => { playStateEl.textContent = '⏸'; });
-    videoEl.addEventListener('pause',   () => { playStateEl.textContent = '▶'; });
+    videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
+    videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
     // ── Flash helpers ─────────────────────────────────────────────────────────
+
     function flashPlayPause(icon) {
         playFlash.textContent = icon;
         playFlash.classList.add('flash');
