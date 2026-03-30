@@ -4,14 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// ── Get local LAN IP ──────────────────────────────────────────────────────────
+// ── Local IP ──────────────────────────────────────────────────────────────────
 function getLocalIp() {
     const ifaces = os.networkInterfaces();
     for (const name of Object.keys(ifaces)) {
         for (const iface of ifaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) {
-                return iface.address;
-            }
+            if (iface.family === 'IPv4' && !iface.internal) return iface.address;
         }
     }
     return '127.0.0.1';
@@ -20,146 +18,131 @@ function getLocalIp() {
 const LOCAL_IP = getLocalIp();
 const PORT = process.env.PORT || 3000;
 
-// ── HTTP server — serves index.html ────────────────────────────────────────
+// ── HTTP ──────────────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
+    // Serve index.html for any non-WS request
     const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
-        if (err) {
-            res.writeHead(404);
-            res.end('Not found');
-            return;
-        }
+        if (err) { res.writeHead(404); res.end('Not found'); return; }
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(data);
     });
 });
 
-// ── WebSocket signaling ───────────────────────────────────────────────────────
+// ── WebSocket ─────────────────────────────────────────────────────────────────
 const wss = new WebSocket.Server({ server });
 
-// rooms[token] = { receiver: ws, caster: ws }
+/**
+ * rooms[code] = { caster: ws | null, receiver: ws | null }
+ *
+ * Binary frames (video chunks) are relayed straight through.
+ * JSON frames are parsed for room management, then relayed if needed.
+ */
 const rooms = {};
 
+function getRoom(code) {
+    if (!rooms[code]) rooms[code] = { caster: null, receiver: null };
+    return rooms[code];
+}
+
+function relay(target, data, isBinary) {
+    if (target?.readyState === WebSocket.OPEN) {
+        target.send(data, { binary: isBinary });
+    }
+}
+
 wss.on('connection', (ws, req) => {
-    let token = null;
-    let role = null;
+    // Parse ?code=XXXX&role=caster|receiver from URL
+    const url    = new URL(req.url, `http://${req.headers.host}`);
+    const code   = url.searchParams.get('code')?.toUpperCase();
+    const role   = url.searchParams.get('role'); // 'caster' | 'receiver'
 
-    const clientIp =
-        (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-        req.socket.remoteAddress ||
-        'unknown';
+    if (!code || !role) {
+        ws.close(1008, 'Missing code or role');
+        return;
+    }
 
-    console.log(`New connection from ${clientIp}`);
+    const room = getRoom(code);
 
-    // Keep connection alive — reply to pings
-    ws.on('message', (raw) => {
-        let msg;
-        try { msg = JSON.parse(raw); }
-        catch (e) { console.error('Invalid JSON:', raw); return; }
-
-        // Keepalive
-        if (msg.type === 'ping') {
-            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'pong' }));
-            return;
+    if (role === 'caster') {
+        // Kick old caster if any
+        if (room.caster && room.caster !== ws) {
+            room.caster.close(1001, 'Replaced by new caster');
         }
+        room.caster = ws;
+        console.log(`[${code}] caster connected`);
 
-        switch (msg.type) {
+        // Tell receiver a caster arrived
+        relay(room.receiver, JSON.stringify({ type: 'caster_connected' }), false);
 
-            // ── Receiver registers ──────────────────────────────────────────
-            case 'register': {
-                // Use server-detected IP as the room token
-                token = LOCAL_IP;
-                role = 'receiver';
+    } else if (role === 'receiver') {
+        if (room.receiver && room.receiver !== ws) {
+            room.receiver.close(1001, 'Replaced by new receiver');
+        }
+        room.receiver = ws;
+        console.log(`[${code}] receiver connected`);
 
-                if (!rooms[token]) rooms[token] = {};
-                rooms[token].receiver = ws;
+        // Tell caster receiver is ready — offscreen will start sending chunks
+        relay(room.caster, JSON.stringify({ type: 'receiver_ready' }), false);
 
-                console.log(`Receiver registered — room: ${token}`);
+        // Echo back to receiver so it shows "connected" state
+        ws.send(JSON.stringify({ type: 'receiver_ready' }));
+    }
 
-                // Send back the server's LAN IP so receiver can display it
-                ws.send(JSON.stringify({ type: 'registered', ip: LOCAL_IP }));
-                break;
+    ws.on('message', (data, isBinary) => {
+        if (isBinary) {
+            // ── Binary frame = video chunk ──────────────────────────────────
+            // Just relay straight to the other side — no parsing needed
+            const target = role === 'caster' ? room.receiver : room.caster;
+            relay(target, data, true);
+
+        } else {
+            // ── Text frame = JSON control message ───────────────────────────
+            let msg;
+            try { msg = JSON.parse(data); }
+            catch (e) { console.warn(`[${code}] bad JSON`, e); return; }
+
+            // Keepalive
+            if (msg.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong' }));
+                return;
             }
 
-            // ── Caster joins ────────────────────────────────────────────────
-            case 'join': {
-                token = msg.ip;
-                role = 'caster';
-
-                if (!rooms[token]?.receiver) {
-                    ws.send(JSON.stringify({ type: 'error', message: 'No receiver found at that IP' }));
-                    return;
-                }
-
-                rooms[token].caster = ws;
-                console.log(`Caster joined room: ${token}`);
-
-                const receiver = rooms[token]?.receiver;
-                if (receiver?.readyState === WebSocket.OPEN) {
-                    receiver.send(JSON.stringify({ type: 'caster_joined' }));
-                }
-
-                ws.send(JSON.stringify({ type: 'joined', ip: token }));
-                break;
-            }
-
-            // ── WebRTC signaling relay ──────────────────────────────────────
-            case 'offer':
-            case 'answer':
-            case 'ice': {
-                if (!token || !rooms[token]) return;
-                const target = role === 'caster'
-                    ? rooms[token].receiver
-                    : rooms[token].caster;
-                if (target?.readyState === WebSocket.OPEN) target.send(JSON.stringify(msg));
-                break;
-            }
-
-            // ── Remote control relay → receiver ────────────────────────────
-            case 'play':
-            case 'pause':
-            case 'seek':
-            case 'seekRelative':
-            case 'volume':
-            case 'metadata': {
-                if (!token || !rooms[token]) return;
-                const receiver = rooms[token]?.receiver;
-                if (receiver?.readyState === WebSocket.OPEN) receiver.send(JSON.stringify(msg));
-                break;
-            }
+            // Relay control messages to the other party
+            const target = role === 'caster' ? room.receiver : room.caster;
+            relay(target, data, false);
         }
     });
 
     ws.on('close', () => {
-        if (!token || !rooms[token]) return;
-        console.log(`${role} disconnected from room ${token}`);
+        console.log(`[${code}] ${role} disconnected`);
 
-        if (role === 'receiver') {
-            const caster = rooms[token]?.caster;
-            if (caster?.readyState === WebSocket.OPEN)
-                caster.send(JSON.stringify({ type: 'receiver_disconnected' }));
-            delete rooms[token];
-        } else if (role === 'caster') {
-            const receiver = rooms[token]?.receiver;
-            if (receiver?.readyState === WebSocket.OPEN)
-                receiver.send(JSON.stringify({ type: 'caster_disconnected' }));
-            delete rooms[token].caster;
+        if (role === 'caster') {
+            room.caster = null;
+            relay(room.receiver, JSON.stringify({ type: 'caster_disconnected' }), false);
+        } else {
+            room.receiver = null;
+            relay(room.caster, JSON.stringify({ type: 'receiver_disconnected' }), false);
+        }
+
+        // Clean up empty rooms
+        if (!room.caster && !room.receiver) {
+            delete rooms[code];
+            console.log(`[${code}] room removed`);
         }
     });
 
-    ws.on('error', (err) => console.error('WS error:', err));
+    ws.on('error', (err) => console.error(`[${code}] WS error:`, err));
 });
 
+// ── Start ─────────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log('  ╔════════════════════════════════════╗');
     console.log(`  ║   CastFlow running on port ${PORT}    ║`);
     console.log('  ╠════════════════════════════════════╣');
-    console.log(`  ║   Open receiver on your TV/PC:     ║`);
-    console.log(`  ║   http://${LOCAL_IP}:${PORT}         ║`);
-    console.log(`  ║                                    ║`);
-    console.log(`  ║   Point extension at:              ║`);
-    console.log(`  ║   ${LOCAL_IP}                      ║`);
+    console.log(`  ║   Receiver:  http://${LOCAL_IP}:${PORT}  ║`);
+    console.log(`  ║   Extension: point at ${LOCAL_IP}    ║`);
     console.log('  ╚════════════════════════════════════╝');
     console.log('');
 });
