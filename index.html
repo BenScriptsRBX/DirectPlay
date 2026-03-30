@@ -186,40 +186,14 @@
 // ============================================
 // CASTFLOW RECEIVER
 // OPFS + MediaSource clip-queue player
-//
-// Flow:
-//   1. WebRTC data channel receives binary chunks
-//   2. Chunks reassembled into complete WebM blobs in memory
-//   3. Blob written to OPFS (Origin Private File System) as temp file
-//   4. File read back as ArrayBuffer, appended to MediaSource SourceBuffer
-//   5. OPFS file deleted immediately after append
-//   6. Video element plays continuously from the MSE timeline
-//
-// Seamless playback strategy:
-//   - SourceBuffer is append-only; clips concatenate on the MSE timeline
-//   - We append the next clip while the current one is still playing
-//   - Target: append starts when ~1 clip remains in buffer
-//   - This gives 5s of lookahead — more than enough for smooth playback
-//
-// Seek strategy:
-//   - Caster sends seek_flush → we call MSE.endOfStream() + reset
-//   - New MediaSource + SourceBuffer created fresh
-//   - First incoming clip after flush starts a new clean timeline
-//   - seekSpinner shown until first clip appended
-//
-// Pause strategy:
-//   - videoEl.pause() freezes the renderer mid-frame
-//   - We stop appending new clips (no wasted OPFS writes)
-//   - Caster stops recording new chunks
-//   - Resume: resume appending from wherever we left off in the queue
 // ============================================
 
 (() => {
     'use strict';
 
     const SIGNAL        = '/api/signal';
-    const MAX_BUFFER_S  = 20;  // MSE: remove segments older than this to avoid OOM
-    const MIN_AHEAD_S   = 2;   // start appending next clip when this much buffer remains
+    const MAX_BUFFER_S  = 20;
+    const MIN_AHEAD_S   = 2;
 
     // ── DOM ───────────────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -264,13 +238,13 @@
         incomingReceived: 0,
 
         // MSE pipeline
-        ms:           null,  // MediaSource
-        sb:           null,  // SourceBuffer
-        clipQueue:    [],    // ArrayBuffer[] waiting to be appended
-        appending:    false, // SourceBuffer.updating guard
+        ms:           null,
+        sb:           null,
+        clipQueue:    [],
+        appending:    false,
         isPaused:     false,
         isSeeking:    false,
-        totalDuration:0,     // accumulated MSE timeline duration
+        totalDuration:0,
 
         // OPFS root (set on init)
         opfsRoot:     null,
@@ -288,7 +262,6 @@
         }
     }
 
-    // Write ArrayBuffer to OPFS, return handle. Falls back to passthrough.
     async function opfsWrite(seq, buffer) {
         if (!state.opfsRoot) return buffer;
         try {
@@ -304,13 +277,11 @@
         }
     }
 
-    // Read from OPFS handle and delete the file
     async function opfsReadAndDelete(opfsRef) {
         if (opfsRef instanceof ArrayBuffer) return opfsRef;
         try {
             const file   = await opfsRef.handle.getFile();
             const buffer = await file.arrayBuffer();
-            // Delete in background — don't await, it's non-blocking cleanup
             state.opfsRoot.removeEntry(opfsRef.name).catch(() => {});
             return buffer;
         } catch (e) {
@@ -322,7 +293,6 @@
     // ── MediaSource pipeline ──────────────────────────────────────────────────
 
     function initMSE(mimeType) {
-        // Tear down existing MSE if any
         if (state.ms) {
             try { state.ms.endOfStream(); } catch (e) {}
             state.ms  = null;
@@ -337,21 +307,39 @@
         videoEl.src = URL.createObjectURL(ms);
 
         ms.addEventListener('sourceopen', () => {
-            // Use the mimeType sniffed from the first clip
-            const codec = mimeType || 'video/webm;codecs=vp9,opus';
-            try {
-                const sb = ms.addSourceBuffer(codec);
-                sb.mode  = 'sequence'; // sequence mode: clips append end-to-end,
-                                       // timestamps are auto-assigned — no gaps
-                state.sb = sb;
-                sb.addEventListener('updateend', onUpdateEnd);
-                sb.addEventListener('error',     (e) => console.error('[receiver] SB error:', e));
+            // Try the exact codec string the caster used first,
+            // then fall back to plain webm if addSourceBuffer rejects it.
+            const candidates = [
+                mimeType || 'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm',
+            ];
 
-                // Drain any clips that arrived before sourceopen
-                drainQueue();
-            } catch (e) {
-                console.error('[receiver] addSourceBuffer failed:', e, codec);
+            let sb = null;
+            for (const codec of candidates) {
+                try {
+                    sb = ms.addSourceBuffer(codec);
+                    console.log('[receiver] addSourceBuffer OK with:', codec);
+                    break;
+                } catch (e) {
+                    console.warn('[receiver] addSourceBuffer rejected codec:', codec, e);
+                }
             }
+
+            if (!sb) {
+                console.error('[receiver] No supported codec found — cannot play');
+                return;
+            }
+
+            sb.mode  = 'sequence';
+            state.sb = sb;
+            sb.addEventListener('updateend', onUpdateEnd);
+            sb.addEventListener('error', (e) => console.error('[receiver] SB error:', e));
+
+            // FIX 1: drain here — this is the earliest point sb is valid.
+            // The drainQueue() call in handleClipEnd runs BEFORE sourceopen fires
+            // on the very first clip, so without this the queue sits forever.
+            drainQueue();
         }, { once: true });
     }
 
@@ -377,7 +365,6 @@
         } catch (e) {
             console.error('[receiver] appendBuffer failed:', e);
             state.appending = false;
-            // If QuotaExceededError, prune harder and retry
             if (e.name === 'QuotaExceededError') {
                 pruneBuffer(true);
                 setTimeout(drainQueue, 100);
@@ -385,8 +372,6 @@
         }
     }
 
-    // Remove old buffered segments to prevent memory growth.
-    // Keeps the last MAX_BUFFER_S seconds.
     function pruneBuffer(aggressive = false) {
         if (!state.sb || state.sb.updating || !state.ms) return;
         if (state.ms.readyState !== 'open') return;
@@ -405,7 +390,6 @@
         const ct    = videoEl.currentTime;
         const end   = state.sb.buffered.end(state.sb.buffered.length - 1);
         const ahead = Math.max(0, end - ct);
-        // Buffer fill shows how many clips we have ahead (max 3 clips = full)
         const pct = Math.min(100, (ahead / 15) * 100);
         bufferFill.style.width = pct + '%';
         statsBadge.textContent = `buf: ${ahead.toFixed(1)}s · queue: ${state.clipQueue.length}`;
@@ -430,7 +414,6 @@
     async function handleClipEnd(msg) {
         if (state.incomingSeq !== msg.seq) return;
 
-        // Assemble all chunks into one ArrayBuffer
         const total  = state.incomingChunks.reduce((n, c) => n + c.byteLength, 0);
         const merged = new Uint8Array(total);
         let offset = 0;
@@ -441,41 +424,52 @@
         state.incomingChunks  = [];
         state.incomingSeq     = null;
 
-        // If this is the first clip, initialize MSE with its codec
-        if (!state.sb && state.ms === null) {
+        // FIX 2: track whether this is the first clip so we know whether
+        // drainQueue() is safe to call immediately.
+        // On the first clip, sourceopen hasn't fired yet — state.sb is still
+        // null — so calling drainQueue() here would bail immediately and the
+        // clip would sit in the queue with nothing to kick it loose later.
+        // We skip the immediate drain; initMSE's sourceopen handler calls it.
+        const isFirstClip = !state.sb && state.ms === null;
+
+        if (isFirstClip) {
             initMSE(state.incomingMime);
         }
 
-        // Write to OPFS (or keep in memory) then enqueue
         const opfsRef = await opfsWrite(msg.seq, merged.buffer);
         state.clipQueue.push(opfsRef);
 
-        // If we're showing the seek spinner, first clip after flush clears it
         if (state.isSeeking) {
             state.isSeeking = false;
             seekSpinner.classList.remove('visible');
         }
 
-        drainQueue();
+        // Only drain if the SourceBuffer already exists.
+        // If isFirstClip, the sourceopen handler will drain once sb is ready.
+        if (!isFirstClip) {
+            drainQueue();
+        }
+
         updateBufferUI();
     }
 
     // ── Seek / pause / resume ─────────────────────────────────────────────────
 
     function handleSeekFlush() {
-        // Discard everything and reset MSE — next clip starts fresh timeline
         state.isSeeking = true;
         state.clipQueue = [];
         seekSpinner.classList.add('visible');
-        flashSeek(0); // show indicator
+        flashSeek(0);
 
-        // Reset MSE so new clips start a clean sequence
         if (state.ms) {
             try { state.ms.endOfStream(); } catch (e) {}
         }
-        state.ms  = null;
-        state.sb  = null;
-        // MSE will be re-initialized on next clip_end
+        // FIX 3: null both ms AND sb so handleClipEnd correctly detects
+        // the next clip as "first clip" and reinitialises MSE.
+        // Without this, if sb is still non-null from the old pipeline,
+        // initMSE is never called and the new clips have nowhere to append.
+        state.ms = null;
+        state.sb = null;
     }
 
     function handlePause() {
@@ -596,7 +590,6 @@
             state.dc.binaryType = 'arraybuffer';
             state.dc.onopen  = () => {
                 console.log('[receiver] dc open');
-                // Tell caster we're ready
                 sendToExtension({ type: 'ready' });
                 waitingScreen.style.display = 'none';
                 connectedBar.classList.add('show');
@@ -718,7 +711,6 @@
     videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
     videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
-    // Auto-play as soon as we have enough buffer
     videoEl.addEventListener('canplay', () => {
         if (!state.isPaused) {
             videoEl.play().then(() => {
