@@ -99,7 +99,7 @@
         #unmuteBtn { position: fixed; bottom: 40px; right: 40px; background: rgba(15,15,15,0.85); backdrop-filter: blur(16px); border: 1px solid var(--glass-border); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: 40px; cursor: pointer; z-index: 60; display: none; }
         #unmuteBtn:hover { background: rgba(40,40,40,0.9); }
 
-        /* ── Stats badge (dev info) ── */
+        /* ── Stats badge ── */
         #statsBadge { position: fixed; top: 18px; right: 24px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--dimmer); z-index: 30; text-align: right; line-height: 1.6; }
     </style>
 </head>
@@ -237,23 +237,25 @@
         if (!state.pc) return;
         state.pc.getReceivers().forEach(receiver => {
             if (receiver.track?.kind !== 'video') return;
-            // jitterBufferTarget = 0 — tells Chrome to play as soon as frame arrives
-            // playoutDelayHint   = 0 — additional hint to the renderer
-            // Both needed — one affects the jitter buffer, one affects the playout pipeline
             try {
-                if ('jitterBufferTarget'   in receiver) receiver.jitterBufferTarget   = 0;
-                if ('playoutDelayHint'     in receiver) receiver.playoutDelayHint     = 0;
+                if ('jitterBufferTarget'    in receiver) receiver.jitterBufferTarget    = 0;
+                if ('playoutDelayHint'      in receiver) receiver.playoutDelayHint      = 0;
                 if ('jitterBufferDelayHint' in receiver) receiver.jitterBufferDelayHint = 0;
             } catch (e) { console.warn('[receiver] jitter buffer hint error:', e); }
         });
     }
 
     // ── Drift corrector ───────────────────────────────────────────────────────
-    // WebRTC buffers can creep forward over time even with jitter hints set.
-    // We check every 500ms and snap back to live edge if we're more than
-    // MAX_DRIFT seconds behind.
+    // FIX: Tightened from 500ms/0.15s to 100ms/0.05s.
+    //
+    // At 60fps, 0.15s = 9 frames of drift before correction.
+    // At 0.05s = 3 frames. Snap target is 1 frame (16ms) not 50ms.
+    //
+    // Why not 0ms? Snapping to the exact live edge causes a stutter
+    // when the browser hasn't decoded the last ~1 frame yet.
+    // 16ms gives exactly one decode cycle of headroom.
 
-    const MAX_DRIFT = 0.15; // seconds — tighter than before (was 0.3)
+    const MAX_DRIFT = 0.05; // seconds — was 0.15
 
     function startDriftCorrector() {
         setInterval(() => {
@@ -261,15 +263,12 @@
             const liveEdge = videoEl.buffered.end(videoEl.buffered.length - 1);
             const drift    = liveEdge - videoEl.currentTime;
             if (drift > MAX_DRIFT) {
-                // Snap to 50ms before live edge — keeps playback smooth
-                videoEl.currentTime = liveEdge - 0.05;
+                videoEl.currentTime = liveEdge - 0.016; // 1 frame at 60fps — was 0.05
             }
-        }, 500);
+        }, 100); // was 500
     }
 
     // ── Stats ─────────────────────────────────────────────────────────────────
-    // Shows live bitrate + resolution in the corner so you can see
-    // whether GCC is throttling the encoder
 
     function startStatsLoop() {
         clearInterval(state.statsTimer);
@@ -379,12 +378,10 @@
             rtcpMuxPolicy: 'require',
         });
 
-        // Data channel for remote control
         state.pc.ondatachannel = (e) => {
             state.dc = e.channel;
             state.dc.onopen = () => {
                 console.log('[receiver] dc open');
-                // Send current quality preference immediately
                 sendToExtension({ type: 'setQuality', quality: state.quality, preset: QUALITY_PRESETS[state.quality] });
             };
             state.dc.onmessage = (ev) => {
@@ -403,12 +400,9 @@
             if (!stream) return;
 
             videoEl.srcObject = stream;
-
-            // Zero jitter buffer immediately on track arrival
             zapJitterBuffer();
 
             videoEl.play().then(() => {
-                // Try unmuting after a short delay so autoplay policy is satisfied
                 setTimeout(tryUnmute, 300);
             }).catch(() => {
                 unmuteBtn.style.display = 'block';
@@ -425,8 +419,6 @@
             console.log('[receiver] connection state:', cs);
 
             if (cs === 'connected') {
-                // Re-zero jitter buffer after full connection
-                // (Chrome sometimes resets it during ICE)
                 zapJitterBuffer();
             }
 
