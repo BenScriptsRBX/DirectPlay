@@ -20,7 +20,6 @@ const PORT = process.env.PORT || 3000;
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
-    // Serve index.html for any non-WS request
     const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
         if (err) { res.writeHead(404); res.end('Not found'); return; }
@@ -52,7 +51,6 @@ function relay(target, data, isBinary) {
 }
 
 wss.on('connection', (ws, req) => {
-    // Parse ?code=XXXX&role=caster|receiver from URL
     const url    = new URL(req.url, `http://${req.headers.host}`);
     const code   = url.searchParams.get('code')?.toUpperCase();
     const role   = url.searchParams.get('role'); // 'caster' | 'receiver'
@@ -65,14 +63,11 @@ wss.on('connection', (ws, req) => {
     const room = getRoom(code);
 
     if (role === 'caster') {
-        // Kick old caster if any
         if (room.caster && room.caster !== ws) {
             room.caster.close(1001, 'Replaced by new caster');
         }
         room.caster = ws;
         console.log(`[${code}] caster connected`);
-
-        // Tell receiver a caster arrived
         relay(room.receiver, JSON.stringify({ type: 'caster_connected' }), false);
 
     } else if (role === 'receiver') {
@@ -81,34 +76,24 @@ wss.on('connection', (ws, req) => {
         }
         room.receiver = ws;
         console.log(`[${code}] receiver connected`);
-
-        // Tell caster receiver is ready — offscreen will start sending chunks
         relay(room.caster, JSON.stringify({ type: 'receiver_ready' }), false);
-
-        // Echo back to receiver so it shows "connected" state
         ws.send(JSON.stringify({ type: 'receiver_ready' }));
     }
 
     ws.on('message', (data, isBinary) => {
         if (isBinary) {
-            // ── Binary frame = video chunk ──────────────────────────────────
-            // Just relay straight to the other side — no parsing needed
             const target = role === 'caster' ? room.receiver : room.caster;
             relay(target, data, true);
-
         } else {
-            // ── Text frame = JSON control message ───────────────────────────
             let msg;
             try { msg = JSON.parse(data); }
             catch (e) { console.warn(`[${code}] bad JSON`, e); return; }
 
-            // Keepalive
             if (msg.type === 'ping') {
                 ws.send(JSON.stringify({ type: 'pong' }));
                 return;
             }
 
-            // Relay control messages to the other party
             const target = role === 'caster' ? room.receiver : room.caster;
             relay(target, data, false);
         }
@@ -125,7 +110,6 @@ wss.on('connection', (ws, req) => {
             relay(room.caster, JSON.stringify({ type: 'receiver_disconnected' }), false);
         }
 
-        // Clean up empty rooms
         if (!room.caster && !room.receiver) {
             delete rooms[code];
             console.log(`[${code}] room removed`);
