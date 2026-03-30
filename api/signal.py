@@ -2,8 +2,13 @@ from http.server import BaseHTTPRequestHandler
 import json
 import time
 
-# In-memory store — persists within a single warm instance
-# For production use Vercel KV, but this works fine for signaling
+# In-memory store — persists within a single warm instance.
+# NOTE: Vercel serverless functions do NOT share memory between invocations.
+# If you hit cold-start races (offer and answer poll hitting different instances),
+# replace _rooms with Vercel KV:
+#   from vercel_kv import kv
+#   await kv.set(f"room:{code}", json.dumps(room), ex=300)
+#   room = json.loads(await kv.get(f"room:{code}") or '{}')
 _rooms = {}
 
 def clean_old_rooms():
@@ -14,7 +19,6 @@ def clean_old_rooms():
             del _rooms[code]
 
 class handler(BaseHTTPRequestHandler):
-
     def log_message(self, format, *args):
         pass  # Suppress default logging
 
@@ -35,12 +39,9 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Receiver/caster polls for signaling messages"""
         clean_old_rooms()
-
-        # Parse path: /api/signal?code=ABCD&role=receiver
         from urllib.parse import urlparse, parse_qs
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
-
         code = params.get('code', [None])[0]
         role = params.get('role', [None])[0]
 
@@ -53,7 +54,10 @@ class handler(BaseHTTPRequestHandler):
         if role == 'receiver':
             # Receiver polls for offer from caster
             if 'offer' in room:
-                self.send_json({ 'offer': room['offer'] })
+                self.send_json({
+                    'offer':      room['offer'],
+                    'ice_caster': room.get('ice_caster', []),
+                })
             else:
                 self.send_json({})
 
@@ -61,8 +65,8 @@ class handler(BaseHTTPRequestHandler):
             # Caster polls for answer from receiver
             if 'answer' in room:
                 self.send_json({
-                    'answer': room['answer'],
-                    'ice_receiver': room.get('ice_receiver', [])
+                    'answer':       room['answer'],
+                    'ice_receiver': room.get('ice_receiver', []),
                 })
             else:
                 self.send_json({})
@@ -73,15 +77,13 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Store signaling data"""
         clean_old_rooms()
-
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length)) if length else {}
 
         from urllib.parse import urlparse, parse_qs
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
-
-        code = params.get('code', [None])[0]
+        code   = params.get('code',   [None])[0]
         action = params.get('action', [None])[0]
 
         if not code:
@@ -94,13 +96,13 @@ class handler(BaseHTTPRequestHandler):
         room = _rooms[code]
 
         if action == 'offer':
-            room['offer'] = body.get('offer')
+            room['offer']      = body.get('offer')
             room['ice_caster'] = body.get('ice', [])
-            room['ts'] = time.time()
+            room['ts']         = time.time()
             self.send_json({'ok': True})
 
         elif action == 'answer':
-            room['answer'] = body.get('answer')
+            room['answer']       = body.get('answer')
             room['ice_receiver'] = body.get('ice', [])
             self.send_json({'ok': True})
 
