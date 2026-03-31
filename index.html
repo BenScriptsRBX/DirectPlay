@@ -28,6 +28,11 @@
         #waitingScreen {
             position:fixed; inset:0; background:#000;
             display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50;
+            transition: opacity 0.4s ease;
+        }
+        #waitingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
         #waitingScreen::before {
             content:''; position:absolute; inset:0;
@@ -188,6 +193,7 @@
         quality:     '1080p',
         qualityOpen: false,
         statsTimer:  null,
+        connected:   false,
     };
 
     // ── Play helper ───────────────────────────────────────────────────────────
@@ -215,6 +221,19 @@
         });
     }
 
+    // ── Show stream UI ────────────────────────────────────────────────────────
+    // Called as soon as the first video track arrives so the waiting screen
+    // disappears the moment video starts flowing — not gated on the DC.
+
+    function showStreamUI() {
+        if (state.connected) return;
+        state.connected = true;
+        waitingScreen.classList.add('hidden');
+        connectedBar.classList.add('show');
+        showToast('🎬 Connected');
+        startStatsMonitor();
+    }
+
     // ── WebRTC ────────────────────────────────────────────────────────────────
 
     async function init() {
@@ -222,8 +241,10 @@
         sessionStorage.setItem('cf_code', state.code);
         codeEl.textContent    = state.code;
         statusMsg.textContent = 'Waiting for device…';
-        await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-        pollForOffer();
+        // Clear stale signal state, but don't block on it
+        fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+        // Small delay so the clear completes before we start polling
+        setTimeout(pollForOffer, 300);
     }
 
     function makeCode() {
@@ -250,6 +271,8 @@
     async function handleOffer(offer, iceCandidates) {
         if (state.pc) { state.pc.close(); state.pc = null; }
 
+        state.connected = false;
+
         state.pc = new RTCPeerConnection({
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -264,13 +287,19 @@
         // means the video element starts rendering as soon as the first RTP
         // packets arrive rather than waiting for full negotiation to finish.
         const remoteStream = new MediaStream();
+        videoEl.srcObject = remoteStream;
 
         state.pc.ontrack = (e) => {
             console.log('[receiver] got track:', e.track.kind);
             remoteStream.addTrack(e.track);
-            videoEl.srcObject = remoteStream;
-            // play() on every track arrival — idempotent if already playing
+
+            // Kick play() on every track — the video element may not yet be
+            // playing if this is the first track to arrive.
             attemptPlay();
+
+            // Hide the waiting screen as soon as we have at least one track.
+            // Don't wait for the DC — the user should see video immediately.
+            showStreamUI();
         };
 
         state.pc.ondatachannel = (e) => {
@@ -280,13 +309,9 @@
             state.dc.onopen = () => {
                 console.log('[receiver] dc open');
                 sendToExtension({ type: 'ready' });
-                waitingScreen.style.display = 'none';
-                connectedBar.classList.add('show');
-                showToast('🎬 Connected');
-                startStatsMonitor();
-                // Belt-and-suspenders play attempt: covers the race where
-                // the DC opens before ontrack has fired (e.g. slow video negotiation)
-                attemptPlay();
+                // showStreamUI is idempotent — safe to call again here in case
+                // the DC opens before any tracks arrive (unusual but possible).
+                showStreamUI();
             };
 
             state.dc.onmessage = onDCMessage;
@@ -311,6 +336,11 @@
         state.pc.onconnectionstatechange = () => {
             const cs = state.pc?.connectionState;
             console.log('[receiver] connection state:', cs);
+            if (cs === 'connected') {
+                // Belt-and-suspenders: ensure UI is shown even if ontrack
+                // fired before connection was fully established.
+                attemptPlay();
+            }
             if (cs === 'disconnected' || cs === 'failed') {
                 showToast('📵 Device disconnected');
                 resetConnection();
@@ -336,14 +366,15 @@
 
     function resetConnection() {
         clearInterval(state.statsTimer);
+        state.connected = false;
         connectedBar.classList.remove('show');
-        waitingScreen.style.display = 'flex';
+        waitingScreen.classList.remove('hidden');
         statusMsg.textContent = 'Waiting for device…';
         videoEl.srcObject = null;
         if (state.pc) { state.pc.close(); state.pc = null; }
         state.dc = null;
         fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-        pollForOffer();
+        setTimeout(pollForOffer, 300);
     }
 
     function waitForICE(timeoutMs) {
