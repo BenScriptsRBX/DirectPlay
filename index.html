@@ -74,30 +74,6 @@
         #playFlash { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); font-size:64px; color:var(--white); opacity:0; pointer-events:none; z-index:30; transition:opacity 0.15s ease; text-shadow:0 4px 32px rgba(0,0,0,0.9); }
         #playFlash.flash { opacity:1; }
 
-        /* ── Seek spinner (shown while re-buffering after seek) ── */
-        #seekSpinner {
-            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-            display:none; flex-direction:column; align-items:center; gap:16px; z-index:40;
-        }
-        #seekSpinner.visible { display:flex; }
-        .spinner-ring {
-            width:48px; height:48px; border:3px solid var(--dimmer);
-            border-top-color:var(--white); border-radius:50%;
-            animation:spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        #seekSpinner p { font-size:13px; color:var(--dim); letter-spacing:1px; }
-
-        /* ── Buffer bar (thin strip at top showing queue depth) ── */
-        #bufferBar {
-            position:fixed; top:0; left:0; right:0; height:2px;
-            background:rgba(255,255,255,0.08); z-index:35;
-        }
-        #bufferFill {
-            height:100%; background:var(--accent);
-            width:0%; transition:width 0.3s ease;
-        }
-
         /* ── Toast ── */
         #toast { position:fixed; top:36px; left:50%; transform:translateX(-50%) translateY(-72px); background:rgba(15,15,15,0.9); backdrop-filter:blur(16px); color:var(--white); padding:11px 26px; border-radius:40px; font-size:13px; transition:transform 0.4s cubic-bezier(.4,0,.2,1); z-index:90; border:1px solid var(--glass-border); white-space:nowrap; }
         #toast.show { transform:translateX(-50%) translateY(0); }
@@ -145,18 +121,17 @@
     </div>
 </div>
 
-<div id="bufferBar"><div id="bufferFill"></div></div>
 <div id="connectedBar"></div>
 <div id="toast"></div>
 <div id="statsBadge"></div>
 
+<!-- autoplay requires muted initially; we unmute after first play() succeeds -->
 <video id="videoEl" autoplay playsinline muted></video>
 <button id="unmuteBtn">🔊 Tap to enable audio</button>
 
 <div id="playFlash">▶</div>
 <div class="seek-indicator" id="seekBack">⏪ 5s</div>
 <div class="seek-indicator" id="seekFwd">5s ⏩</div>
-<div id="seekSpinner"><div class="spinner-ring"></div><p>Seeking…</p></div>
 
 <div id="qualityPanel">
     <h3>Stream Quality</h3>
@@ -185,17 +160,16 @@
 <script>
 // ============================================
 // CASTFLOW RECEIVER
-// OPFS + MediaSource clip-queue player
+// Live RTP stream via RTCPeerConnection → videoEl.srcObject
+// No MSE, no OPFS, no clip queue — the browser's jitter buffer
+// handles buffering at the WebRTC layer (30ms window set by offscreen SDP).
 // ============================================
 
 (() => {
     'use strict';
 
-    const SIGNAL        = '/api/signal';
-    const MAX_BUFFER_S  = 1;
-    const MIN_AHEAD_S   = 2;
+    const SIGNAL = '/api/signal';
 
-    // ── DOM ───────────────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
     const videoEl       = $('videoEl');
     const waitingScreen = $('waitingScreen');
@@ -212,268 +186,194 @@
     const playFlash     = $('playFlash');
     const seekBack      = $('seekBack');
     const seekFwd       = $('seekFwd');
-    const seekSpinner   = $('seekSpinner');
-    const bufferFill    = $('bufferFill');
     const toast         = $('toast');
     const connectedBar  = $('connectedBar');
     const unmuteBtn     = $('unmuteBtn');
     const qualityPanel  = $('qualityPanel');
     const statsBadge    = $('statsBadge');
 
-    // ── State ─────────────────────────────────────────────────────────────────
     const state = {
-        code:         null,
-        pc:           null,
-        dc:           null,
-        pollTimer:    null,
-        hideTimer:    null,
-        quality:      '1080p',
-        qualityOpen:  false,
-
-        // Clip reassembly
-        incomingSeq:  null,
-        incomingMime: null,
-        incomingSize: null,
-        incomingChunks: [],
-        incomingReceived: 0,
-
-        // MSE pipeline
-        ms:           null,
-        sb:           null,
-        clipQueue:    [],
-        appending:    false,
-        isPaused:     false,
-        isSeeking:    false,
-        totalDuration:0,
-
-        // OPFS root (set on init)
-        opfsRoot:     null,
+        code:        null,
+        pc:          null,
+        dc:          null,
+        pollTimer:   null,
+        hideTimer:   null,
+        quality:     '1080p',
+        qualityOpen: false,
+        statsTimer:  null,
     };
 
-    // ── OPFS init ─────────────────────────────────────────────────────────────
+    // ── WebRTC ────────────────────────────────────────────────────────────────
 
-    async function initOPFS() {
-        try {
-            state.opfsRoot = await navigator.storage.getDirectory();
-            console.log('[receiver] OPFS ready');
-        } catch (e) {
-            console.warn('[receiver] OPFS unavailable, using memory only:', e);
-            state.opfsRoot = null;
-        }
+    async function init() {
+        state.code = sessionStorage.getItem('cf_code') || makeCode();
+        sessionStorage.setItem('cf_code', state.code);
+        codeEl.textContent    = state.code;
+        statusMsg.textContent = 'Waiting for device…';
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+        pollForOffer();
     }
 
-    async function opfsWrite(seq, buffer) {
-        if (!state.opfsRoot) return buffer;
-        try {
-            const name   = `cf_clip_${seq}.webm`;
-            const handle = await state.opfsRoot.getFileHandle(name, { create: true });
-            const writable = await handle.createWritable();
-            await writable.write(buffer);
-            await writable.close();
-            return { handle, name };
-        } catch (e) {
-            console.warn('[receiver] OPFS write failed, using memory:', e);
-            return buffer;
-        }
+    function makeCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     }
 
-    async function opfsReadAndDelete(opfsRef) {
-        if (opfsRef instanceof ArrayBuffer) return opfsRef;
+    async function pollForOffer() {
         try {
-            const file   = await opfsRef.handle.getFile();
-            const buffer = await file.arrayBuffer();
-            state.opfsRoot.removeEntry(opfsRef.name).catch(() => {});
-            return buffer;
-        } catch (e) {
-            console.warn('[receiver] OPFS read failed:', e);
-            return null;
-        }
-    }
-
-    // ── MediaSource pipeline ──────────────────────────────────────────────────
-
-    function initMSE(mimeType) {
-        if (state.ms) {
-            try { state.ms.endOfStream(); } catch (e) {}
-            state.ms  = null;
-            state.sb  = null;
-        }
-        state.clipQueue     = [];
-        state.appending     = false;
-        state.totalDuration = 0;
-
-        const ms = new MediaSource();
-        state.ms = ms;
-        videoEl.src = URL.createObjectURL(ms);
-
-        ms.addEventListener('sourceopen', () => {
-            // Try the exact codec string the caster used first,
-            // then fall back to plain webm if addSourceBuffer rejects it.
-            const candidates = [
-                mimeType || 'video/webm;codecs=vp9,opus',
-                'video/webm;codecs=vp8,opus',
-                'video/webm',
-            ];
-
-            let sb = null;
-            for (const codec of candidates) {
-                try {
-                    sb = ms.addSourceBuffer(codec);
-                    console.log('[receiver] addSourceBuffer OK with:', codec);
-                    break;
-                } catch (e) {
-                    console.warn('[receiver] addSourceBuffer rejected codec:', codec, e);
-                }
-            }
-
-            if (!sb) {
-                console.error('[receiver] No supported codec found — cannot play');
+            const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
+            const data = await res.json();
+            if (data.offer) {
+                clearTimeout(state.pollTimer);
+                statusMsg.textContent = 'Device found — connecting…';
+                await handleOffer(data.offer, data.ice_caster || []);
                 return;
             }
-
-            sb.mode  = 'sequence';
-            state.sb = sb;
-            sb.addEventListener('updateend', onUpdateEnd);
-            sb.addEventListener('error', (e) => console.error('[receiver] SB error:', e));
-
-            // FIX 1: drain here — this is the earliest point sb is valid.
-            // The drainQueue() call in handleClipEnd runs BEFORE sourceopen fires
-            // on the very first clip, so without this the queue sits forever.
-            drainQueue();
-        }, { once: true });
-    }
-
-    function onUpdateEnd() {
-        state.appending = false;
-        pruneBuffer();
-        updateBufferUI();
-        drainQueue();
-    }
-
-    async function drainQueue() {
-        if (state.appending || state.isSeeking || state.isPaused) return;
-        if (!state.sb || state.sb.updating) return;
-        if (state.clipQueue.length === 0) return;
-
-        const opfsRef = state.clipQueue.shift();
-        const buffer  = await opfsReadAndDelete(opfsRef);
-        if (!buffer || buffer.byteLength === 0) { drainQueue(); return; }
-
-        state.appending = true;
-        try {
-            state.sb.appendBuffer(buffer);
         } catch (e) {
-            console.error('[receiver] appendBuffer failed:', e);
-            state.appending = false;
-            if (e.name === 'QuotaExceededError') {
-                pruneBuffer(true);
-                setTimeout(drainQueue, 100);
-            }
+            console.warn('[receiver] poll error:', e);
         }
+        state.pollTimer = setTimeout(pollForOffer, 1500);
     }
 
-    function pruneBuffer(aggressive = false) {
-        if (!state.sb || state.sb.updating || !state.ms) return;
-        if (state.ms.readyState !== 'open') return;
-        const ct = videoEl.currentTime;
-        const removeUntil = ct - (aggressive ? 5 : MAX_BUFFER_S);
-        if (removeUntil <= 0) return;
+    async function handleOffer(offer, iceCandidates) {
+        if (state.pc) { state.pc.close(); state.pc = null; }
+
+        state.pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ],
+            bundlePolicy:  'max-bundle',
+            rtcpMuxPolicy: 'require',
+        });
+
+        // ── THIS is the key fix ──────────────────────────────────────────────
+        // The caster sends raw RTP tracks (video + audio). We collect them in a
+        // MediaStream and assign it to videoEl.srcObject. No MSE, no clip queue.
+        // The browser's built-in WebRTC jitter buffer — constrained to 30ms by
+        // the playout-delay SDP hint from offscreen — handles all buffering.
+        const remoteStream = new MediaStream();
+        state.pc.ontrack = (e) => {
+            console.log('[receiver] got track:', e.track.kind);
+            remoteStream.addTrack(e.track);
+            videoEl.srcObject = remoteStream;
+        };
+
+        state.pc.ondatachannel = (e) => {
+            state.dc            = e.channel;
+            state.dc.binaryType = 'arraybuffer';
+            state.dc.onopen = () => {
+                console.log('[receiver] dc open');
+                sendToExtension({ type: 'ready' });
+                waitingScreen.style.display = 'none';
+                connectedBar.classList.add('show');
+                showToast('🎬 Connected');
+                startStatsMonitor();
+            };
+            state.dc.onmessage = onDCMessage;
+            state.dc.onclose   = () => {
+                showToast('📵 Device disconnected');
+                resetConnection();
+            };
+        };
+
+        const receiverCandidates = [];
+        state.pc.onicecandidate = (e) => {
+            if (e.candidate) receiverCandidates.push(e.candidate);
+        };
+
+        state.pc.onconnectionstatechange = () => {
+            const cs = state.pc?.connectionState;
+            console.log('[receiver] connection state:', cs);
+            if (cs === 'disconnected' || cs === 'failed') {
+                showToast('📵 Device disconnected');
+                resetConnection();
+            }
+        };
+
+        await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
+        for (const c of iceCandidates) await state.pc.addIceCandidate(c).catch(() => {});
+
+        const answer = await state.pc.createAnswer();
+        await state.pc.setLocalDescription(answer);
+        await waitForICE(1000);
+
+        await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                answer: state.pc.localDescription.sdp,
+                ice:    receiverCandidates
+            }),
+        });
+    }
+
+    function resetConnection() {
+        clearInterval(state.statsTimer);
+        connectedBar.classList.remove('show');
+        waitingScreen.style.display = 'flex';
+        statusMsg.textContent = 'Waiting for device…';
+        videoEl.srcObject = null;
+        if (state.pc) { state.pc.close(); state.pc = null; }
+        state.dc = null;
+        fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
+        pollForOffer();
+    }
+
+    function waitForICE(timeoutMs) {
+        return new Promise((resolve) => {
+            if (!state.pc || state.pc.iceGatheringState === 'complete') { resolve(); return; }
+            const check = () => {
+                if (state.pc?.iceGatheringState === 'complete') {
+                    state.pc.removeEventListener('icegatheringstatechange', check);
+                    resolve();
+                }
+            };
+            state.pc.addEventListener('icegatheringstatechange', check);
+            setTimeout(() => { state.pc?.removeEventListener('icegatheringstatechange', check); resolve(); }, timeoutMs);
+        });
+    }
+
+    // ── Stats monitor — shows actual jitter buffer delay ─────────────────────
+
+    function startStatsMonitor() {
+        clearInterval(state.statsTimer);
+        state.statsTimer = setInterval(async () => {
+            if (!state.pc || state.pc.connectionState !== 'connected') return;
+            try {
+                const stats = await state.pc.getStats();
+                for (const r of stats.values()) {
+                    if (r.type === 'inbound-rtp' && r.kind === 'video') {
+                        const jb = r.jitterBufferDelay != null && r.jitterBufferEmittedCount > 0
+                            ? (r.jitterBufferDelay / r.jitterBufferEmittedCount * 1000).toFixed(0)
+                            : '—';
+                        const fr = r.framesPerSecond ? r.framesPerSecond.toFixed(0) : '—';
+                        statsBadge.textContent = `jitter: ${jb}ms · ${fr}fps`;
+                    }
+                }
+            } catch (e) {}
+        }, 1000);
+    }
+
+    // ── Data channel messages ─────────────────────────────────────────────────
+
+    function onDCMessage(ev) {
+        if (!(typeof ev.data === 'string')) return;
         try {
-            if (state.sb.buffered.length > 0 && state.sb.buffered.start(0) < removeUntil) {
-                state.sb.remove(0, removeUntil);
+            const msg = JSON.parse(ev.data);
+            switch (msg.type) {
+                case 'metadata':      mediaTitle.textContent = msg.title || '—'; break;
+                case 'pause':         handlePause();  break;
+                case 'resume':        handleResume(); break;
+                case 'quality_changed': setQuality(msg.quality, false); break;
             }
-        } catch (e) { /* updating guard */ }
+        } catch (e) { console.error('[receiver] dc parse error:', e); }
     }
 
-    function updateBufferUI() {
-        if (!state.sb || !state.sb.buffered.length) return;
-        const ct    = videoEl.currentTime;
-        const end   = state.sb.buffered.end(state.sb.buffered.length - 1);
-        const ahead = Math.max(0, end - ct);
-        const pct = Math.min(100, (ahead / 15) * 100);
-        bufferFill.style.width = pct + '%';
-        statsBadge.textContent = `buf: ${ahead.toFixed(1)}s · queue: ${state.clipQueue.length}`;
-    }
-
-    // ── Clip reassembly ───────────────────────────────────────────────────────
-
-    function handleClipStart(msg) {
-        state.incomingSeq     = msg.seq;
-        state.incomingMime    = msg.mimeType;
-        state.incomingSize    = msg.byteLength;
-        state.incomingChunks  = [];
-        state.incomingReceived = 0;
-    }
-
-    function handleChunkData(arrayBuffer) {
-        if (state.incomingSeq === null) return;
-        state.incomingChunks.push(arrayBuffer);
-        state.incomingReceived += arrayBuffer.byteLength;
-    }
-
-    async function handleClipEnd(msg) {
-        if (state.incomingSeq !== msg.seq) return;
-
-        const total  = state.incomingChunks.reduce((n, c) => n + c.byteLength, 0);
-        const merged = new Uint8Array(total);
-        let offset = 0;
-        for (const chunk of state.incomingChunks) {
-            merged.set(new Uint8Array(chunk), offset);
-            offset += chunk.byteLength;
-        }
-        state.incomingChunks  = [];
-        state.incomingSeq     = null;
-
-        // FIX 2: track whether this is the first clip so we know whether
-        // drainQueue() is safe to call immediately.
-        // On the first clip, sourceopen hasn't fired yet — state.sb is still
-        // null — so calling drainQueue() here would bail immediately and the
-        // clip would sit in the queue with nothing to kick it loose later.
-        // We skip the immediate drain; initMSE's sourceopen handler calls it.
-        const isFirstClip = !state.sb && state.ms === null;
-
-        if (isFirstClip) {
-            initMSE(state.incomingMime);
-        }
-
-        const opfsRef = await opfsWrite(msg.seq, merged.buffer);
-        state.clipQueue.push(opfsRef);
-
-        if (state.isSeeking) {
-            state.isSeeking = false;
-            seekSpinner.classList.remove('visible');
-        }
-
-        // Only drain if the SourceBuffer already exists.
-        // If isFirstClip, the sourceopen handler will drain once sb is ready.
-        if (!isFirstClip) {
-            drainQueue();
-        }
-
-        updateBufferUI();
-    }
-
-    // ── Seek / pause / resume ─────────────────────────────────────────────────
-
-    function handleSeekFlush() {
-        state.isSeeking = true;
-        state.clipQueue = [];
-        seekSpinner.classList.add('visible');
-        flashSeek(0);
-
-        if (state.ms) {
-            try { state.ms.endOfStream(); } catch (e) {}
-        }
-        // FIX 3: null both ms AND sb so handleClipEnd correctly detects
-        // the next clip as "first clip" and reinitialises MSE.
-        // Without this, if sb is still non-null from the old pipeline,
-        // initMSE is never called and the new clips have nowhere to append.
-        state.ms = null;
-        state.sb = null;
-    }
+    // ── Play / pause ──────────────────────────────────────────────────────────
 
     function handlePause() {
-        state.isPaused = true;
         videoEl.pause();
         flashPlayPause('⏸');
         showOverlay();
@@ -481,33 +381,10 @@
     }
 
     function handleResume() {
-        state.isPaused = false;
         videoEl.play().catch(() => {});
         flashPlayPause('▶');
         showOverlay();
         playStateEl.textContent = '⏸';
-        drainQueue();
-    }
-
-    // ── Data channel message dispatcher ──────────────────────────────────────
-
-    function onDCMessage(ev) {
-        if (ev.data instanceof ArrayBuffer) {
-            handleChunkData(ev.data);
-            return;
-        }
-        try {
-            const msg = JSON.parse(ev.data);
-            switch (msg.type) {
-                case 'clip_start':    handleClipStart(msg);                      break;
-                case 'clip_end':      handleClipEnd(msg);                        break;
-                case 'pause':         handlePause();                             break;
-                case 'resume':        handleResume();                            break;
-                case 'seek_flush':    handleSeekFlush();                         break;
-                case 'metadata':      mediaTitle.textContent = msg.title || '—'; break;
-                case 'quality_changed': setQuality(msg.quality, false);          break;
-            }
-        } catch (e) { console.error('[receiver] dc parse error:', e); }
     }
 
     // ── Quality ───────────────────────────────────────────────────────────────
@@ -540,123 +417,7 @@
         }
     }
 
-    // ── WebRTC init ───────────────────────────────────────────────────────────
-
-    async function init() {
-        await initOPFS();
-
-        state.code = sessionStorage.getItem('cf_code') || makeCode();
-        sessionStorage.setItem('cf_code', state.code);
-        codeEl.textContent    = state.code;
-        statusMsg.textContent = 'Waiting for device…';
-
-        await fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-        pollForOffer();
-    }
-
-    function makeCode() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    }
-
-    async function pollForOffer() {
-        try {
-            const res  = await fetch(`${SIGNAL}?code=${state.code}&role=receiver`);
-            const data = await res.json();
-            if (data.offer) {
-                clearTimeout(state.pollTimer);
-                statusMsg.textContent = 'Device found — connecting…';
-                await handleOffer(data.offer, data.ice_caster || []);
-                return;
-            }
-        } catch (e) { console.warn('[receiver] poll error:', e); }
-        state.pollTimer = setTimeout(pollForOffer, 1500);
-    }
-
-    async function handleOffer(offer, iceCandidates) {
-        if (state.pc) { state.pc.close(); state.pc = null; }
-
-        state.pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-            ],
-            bundlePolicy:  'max-bundle',
-            rtcpMuxPolicy: 'require',
-        });
-
-        state.pc.ondatachannel = (e) => {
-            state.dc            = e.channel;
-            state.dc.binaryType = 'arraybuffer';
-            state.dc.onopen  = () => {
-                console.log('[receiver] dc open');
-                sendToExtension({ type: 'ready' });
-                waitingScreen.style.display = 'none';
-                connectedBar.classList.add('show');
-                showToast('🎬 Connected — buffering…');
-            };
-            state.dc.onmessage = onDCMessage;
-            state.dc.onclose   = () => {
-                showToast('📵 Device disconnected');
-                resetConnection();
-            };
-        };
-
-        const receiverCandidates = [];
-        state.pc.onicecandidate = (e) => {
-            if (e.candidate) receiverCandidates.push(e.candidate);
-        };
-
-        state.pc.onconnectionstatechange = () => {
-            const cs = state.pc?.connectionState;
-            if (cs === 'disconnected' || cs === 'failed') {
-                showToast('📵 Device disconnected');
-                resetConnection();
-            }
-        };
-
-        await state.pc.setRemoteDescription({ type: 'offer', sdp: offer });
-        for (const c of iceCandidates) await state.pc.addIceCandidate(c).catch(() => {});
-
-        const answer = await state.pc.createAnswer();
-        await state.pc.setLocalDescription(answer);
-        await waitForICE(2500);
-
-        await fetch(`${SIGNAL}?code=${state.code}&action=answer`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ answer: state.pc.localDescription.sdp, ice: receiverCandidates }),
-        });
-    }
-
-    function resetConnection() {
-        connectedBar.classList.remove('show');
-        waitingScreen.style.display = 'flex';
-        statusMsg.textContent = 'Waiting for device…';
-        state.pc = null; state.dc = null;
-        state.ms = null; state.sb = null;
-        state.clipQueue = [];
-        videoEl.src = '';
-        seekSpinner.classList.remove('visible');
-        fetch(`${SIGNAL}?code=${state.code}&action=clear`, { method: 'POST' }).catch(() => {});
-        pollForOffer();
-    }
-
-    function waitForICE(timeoutMs) {
-        return new Promise((resolve) => {
-            if (!state.pc || state.pc.iceGatheringState === 'complete') { resolve(); return; }
-            const check = () => {
-                if (state.pc?.iceGatheringState === 'complete') {
-                    state.pc.removeEventListener('icegatheringstatechange', check);
-                    resolve();
-                }
-            };
-            state.pc.addEventListener('icegatheringstatechange', check);
-            setTimeout(() => { state.pc?.removeEventListener('icegatheringstatechange', check); resolve(); }, timeoutMs);
-        });
-    }
-
-    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    // ── Keyboard ──────────────────────────────────────────────────────────────
 
     document.addEventListener('keydown', e => {
         if (e.key === 'Shift') { document.body.classList.toggle('cursor-visible'); e.preventDefault(); return; }
@@ -669,11 +430,9 @@
 
         switch (e.key) {
             case ' ': case 'Enter':
-                if (state.isPaused) {
-                    sendToExtension({ type: 'resume' });
-                } else {
-                    sendToExtension({ type: 'pause' });
-                }
+                videoEl.paused
+                    ? sendToExtension({ type: 'resume' })
+                    : sendToExtension({ type: 'pause' });
                 e.preventDefault(); break;
             case 'ArrowLeft':
                 sendToExtension({ type: 'seekRelative', seconds: -5 });
@@ -697,28 +456,25 @@
     }
 
     videoEl.addEventListener('timeupdate', () => {
-        if (!state.sb || !state.sb.buffered.length) return;
-        const end = state.sb.buffered.end(state.sb.buffered.length - 1);
         const ct  = videoEl.currentTime;
-        const pct = end > 0 ? (ct / end) * 100 : 0;
+        const dur = videoEl.duration;
+        if (!dur) return;
+        const pct = (ct / dur) * 100;
         progressFill.style.width  = pct + '%';
         progressHandle.style.left = pct + '%';
         currentTimeEl.textContent = formatTime(ct);
-        durationEl.textContent    = formatTime(end);
-        updateBufferUI();
+        durationEl.textContent    = formatTime(dur);
     });
 
     videoEl.addEventListener('play',  () => { playStateEl.textContent = '⏸'; });
     videoEl.addEventListener('pause', () => { playStateEl.textContent = '▶'; });
 
     videoEl.addEventListener('canplay', () => {
-        if (!state.isPaused) {
-            videoEl.play().then(() => {
-                tryUnmute();
-            }).catch(() => {
-                unmuteBtn.style.display = 'block';
-            });
-        }
+        videoEl.play().then(() => {
+            tryUnmute();
+        }).catch(() => {
+            unmuteBtn.style.display = 'block';
+        });
     });
 
     // ── Unmute ────────────────────────────────────────────────────────────────
