@@ -1,527 +1,872 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DirectPlay Receiver</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-        :root {
-            --white: #ffffff;
-            --dim: rgba(255,255,255,0.45);
-            --dimmer: rgba(255,255,255,0.18);
-            --glass: rgba(255,255,255,0.07);
-            --glass-border: rgba(255,255,255,0.13);
-            --accent: #e8ff47;
-            --focus: #e8ff47;
-            --focus-glow: rgba(232,255,71,0.35);
-        }
-        html, body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'DM Sans',sans-serif; -webkit-font-smoothing:antialiased; }
-        body { cursor:none; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DirectCast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
-        #videoEl { position:fixed; inset:0; width:100%; height:100%; object-fit:contain; background:#000; z-index:0; }
+:root{
+  --bg:#0a0a0a;
+  --surface:rgba(255,255,255,0.06);
+  --surface-hover:rgba(255,255,255,0.1);
+  --border:rgba(255,255,255,0.1);
+  --text:#ffffff;
+  --text-secondary:rgba(255,255,255,0.5);
+  --text-dim:rgba(255,255,255,0.25);
+  --accent:#e50914;
+  --accent-soft:rgba(229,9,20,0.2);
+  --accent-glow:rgba(229,9,20,0.4);
+  --btn-focus:rgba(255,255,255,0.15);
+  --radius:12px;
+  --radius-lg:18px;
+}
 
-        /* Waiting */
-        #waitingScreen { position:fixed; inset:0; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:50; transition:opacity 0.4s ease; }
-        #waitingScreen.hidden { opacity:0; pointer-events:none; }
-        #waitingScreen::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px); pointer-events:none; }
-        .wt-logo { font-size:10px; font-weight:600; letter-spacing:8px; color:var(--dim); text-transform:uppercase; margin-bottom:52px; position:relative; z-index:1; }
-        .wt-card { background:var(--glass); border:1px solid var(--glass-border); border-radius:20px; padding:48px 64px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:420px; position:relative; z-index:1; }
-        .wt-label { font-size:10px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:8px; }
-        #codeEl { font-family:'DM Mono',monospace; font-size:64px; font-weight:500; color:var(--white); letter-spacing:8px; line-height:1; margin-bottom:10px; }
-        .wt-sublabel { font-size:10px; letter-spacing:2px; color:var(--dimmer); text-transform:uppercase; }
-        .wt-divider { width:1px; height:28px; background:var(--glass-border); margin:22px 0; }
-        #statusMsg { font-size:13px; color:var(--dim); letter-spacing:0.5px; }
-        .dot-loader { display:flex; gap:8px; margin-top:14px; }
-        .dot-loader span { width:5px; height:5px; background:var(--dimmer); border-radius:50%; animation:dotPulse 1.6s ease-in-out infinite; }
-        .dot-loader span:nth-child(2) { animation-delay:.25s; }
-        .dot-loader span:nth-child(3) { animation-delay:.5s; }
-        @keyframes dotPulse { 0%,80%,100%{transform:scale(.5);opacity:.3} 40%{transform:scale(1);opacity:1} }
+html,body{width:100%;height:100%;background:var(--bg);overflow:hidden;font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased;color:var(--text)}
+body{cursor:none}
 
-        /* Misc chrome */
-        #connectedBar { position:fixed; top:0; left:0; right:0; height:3px; background:var(--accent); transform:scaleX(0); transform-origin:left; transition:transform 0.6s cubic-bezier(.4,0,.2,1); z-index:40; }
-        #connectedBar.show { transform:scaleX(1); }
-        #toast { position:fixed; top:36px; left:50%; transform:translateX(-50%) translateY(-80px); background:rgba(10,10,10,0.92); backdrop-filter:blur(20px); color:var(--white); padding:12px 28px; border-radius:40px; font-size:14px; font-weight:500; transition:transform 0.35s cubic-bezier(.4,0,.2,1); z-index:90; border:1px solid var(--glass-border); white-space:nowrap; }
-        #toast.show { transform:translateX(-50%) translateY(0); }
-        #statsBadge { position:fixed; top:20px; right:28px; font-size:11px; font-family:'DM Mono',monospace; color:var(--dimmer); z-index:30; text-align:right; line-height:1.7; pointer-events:none; }
-        #unmuteBtn { position:fixed; bottom:44px; right:44px; background:rgba(10,10,10,0.88); backdrop-filter:blur(16px); border:1px solid var(--glass-border); color:var(--white); font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500; padding:14px 28px; border-radius:40px; cursor:pointer; z-index:60; display:none; }
-        #playFlash { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.8); font-size:72px; color:var(--white); opacity:0; pointer-events:none; z-index:30; transition:opacity 0.12s ease,transform 0.12s ease; text-shadow:0 4px 40px rgba(0,0,0,0.95); }
-        #playFlash.flash { opacity:1; transform:translate(-50%,-50%) scale(1); }
+/* ─── Video ──────────────────────────────────────────────────────────────── */
+#videoEl{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:0}
 
-        /* TV Overlay */
-        #tvOverlay { position:fixed; bottom:0; left:0; right:0; padding:0 72px 56px; background:linear-gradient(transparent 0%,rgba(0,0,0,0.65) 28%,rgba(0,0,0,0.97) 100%); transform:translateY(100%); transition:transform 0.3s cubic-bezier(.4,0,.2,1); z-index:20; }
-        #tvOverlay.visible { transform:translateY(0); }
-        #mediaTitle { font-size:28px; font-weight:600; color:var(--white); margin-bottom:28px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* ─── Waiting screen ─────────────────────────────────────────────────────── */
+#waitingScreen{
+  position:fixed;inset:0;z-index:60;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);
+  transition:opacity .5s ease, visibility .5s ease;
+}
+#waitingScreen.hidden{opacity:0;visibility:hidden;pointer-events:none}
 
-        /* Seek row */
-        .seek-row { display:flex; align-items:center; gap:16px; margin-bottom:28px; }
-        .time-label { font-family:'DM Mono',monospace; font-size:15px; color:var(--dim); white-space:nowrap; min-width:62px; }
-        .time-label.right { text-align:right; }
-        .seek-track { flex:1; position:relative; height:6px; background:var(--dimmer); border-radius:3px; cursor:pointer; transition:box-shadow 0.15s; }
-        .seek-track.focused { box-shadow:0 0 0 3px var(--focus-glow); border-radius:3px; }
-        #seekFill { height:100%; background:var(--white); border-radius:3px; width:0%; pointer-events:none; transition:width 0.4s linear; }
-        #seekHandle { position:absolute; top:50%; transform:translate(-50%,-50%) scale(0); width:20px; height:20px; background:var(--white); border-radius:50%; transition:transform 0.2s ease,left 0.4s linear; pointer-events:none; }
-        .seek-track.focused #seekHandle, #tvOverlay.visible #seekHandle { transform:translate(-50%,-50%) scale(1); }
+#waitingScreen::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 110%, rgba(229,9,20,0.12) 0%, transparent 70%);
+  pointer-events:none;
+}
 
-        /* Controls row */
-        .controls-row { display:flex; align-items:center; justify-content:center; gap:16px; }
-        .tv-btn { display:flex; align-items:center; justify-content:center; background:var(--glass); border:2px solid var(--glass-border); border-radius:16px; color:var(--white); font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; outline:none; transition:background 0.15s,border-color 0.15s,transform 0.1s,box-shadow 0.15s; user-select:none; }
-        .tv-btn:active { transform:scale(0.93); }
-        .tv-btn.focused { border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-glow); background:rgba(232,255,71,0.08); }
-        .tv-btn-sm { width:64px; height:64px; font-size:13px; border-radius:14px; }
-        .tv-btn-md { width:80px; height:80px; font-size:28px; border-radius:16px; }
-        .tv-btn-lg { width:100px; height:100px; font-size:36px; border-radius:20px; }
-        #playPauseBtn.focused { background:var(--focus); color:#000; border-color:var(--focus); box-shadow:0 0 0 4px var(--focus-glow); }
-        .controls-spacer { flex:1; }
-        #qualityBadgeBtn { font-size:13px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--dim); padding:10px 20px; height:auto; width:auto; border-radius:40px; }
-        #qualityBadgeBtn.focused { color:var(--white); border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-glow); background:rgba(232,255,71,0.08); }
+.ws-brand{
+  font-size:11px;font-weight:600;letter-spacing:6px;text-transform:uppercase;
+  color:var(--text-dim);margin-bottom:48px;position:relative;z-index:1;
+}
 
-        /* Quality panel */
-        #qualityPanel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.94); background:rgba(10,10,10,0.96); backdrop-filter:blur(28px); border:1px solid var(--glass-border); border-radius:24px; padding:36px 44px; z-index:80; opacity:0; pointer-events:none; transition:opacity 0.2s ease,transform 0.2s ease; min-width:380px; }
-        #qualityPanel.visible { opacity:1; pointer-events:all; transform:translate(-50%,-50%) scale(1); }
-        #qualityPanel h3 { font-size:11px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:24px; text-align:center; }
-        .qp-options { display:flex; flex-direction:column; gap:10px; }
-        .qp-option { display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-radius:14px; border:2px solid var(--glass-border); background:transparent; color:var(--white); font-family:'DM Sans',sans-serif; font-size:15px; cursor:pointer; outline:none; transition:background 0.15s,border-color 0.15s,box-shadow 0.15s; }
-        .qp-option.focused { border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-glow); background:rgba(232,255,71,0.06); }
-        .qp-option.active { background:var(--white); color:#000; border-color:var(--white); }
-        .qp-option.active.focused { background:var(--focus); color:#000; border-color:var(--focus); }
-        .qp-name { font-weight:700; font-size:16px; }
-        .qp-desc { font-size:12px; color:var(--dim); }
-        .qp-option.active .qp-desc, .qp-option.active.focused .qp-desc { color:rgba(0,0,0,0.5); }
-        .qp-hint { font-size:10px; letter-spacing:1.5px; color:var(--dimmer); text-transform:uppercase; text-align:center; margin-top:20px; }
-    </style>
+.ws-card{
+  position:relative;z-index:1;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:52px 72px;
+  display:flex;flex-direction:column;align-items:center;
+  min-width:400px;
+  backdrop-filter:blur(20px);
+}
+.ws-card::before{
+  content:'';position:absolute;inset:-1px;border-radius:25px;
+  background:linear-gradient(135deg,rgba(255,255,255,0.08),transparent 50%,rgba(229,9,20,0.06));
+  pointer-events:none;z-index:-1;
+}
+
+.ws-label{font-size:10px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px}
+
+#codeEl{
+  font-family:'JetBrains Mono',monospace;
+  font-size:72px;font-weight:500;letter-spacing:12px;
+  color:var(--text);line-height:1;margin-bottom:6px;
+}
+
+.ws-sublabel{font-size:12px;color:var(--text-secondary);letter-spacing:.5px;margin-bottom:32px}
+
+.ws-sep{width:32px;height:1px;background:var(--border);margin-bottom:24px}
+
+#statusMsg{font-size:14px;color:var(--text-secondary);letter-spacing:.3px}
+
+.dot-pulse{display:flex;gap:6px;margin-top:16px}
+.dot-pulse span{
+  width:4px;height:4px;border-radius:50%;background:var(--text-dim);
+  animation:dp 1.6s ease-in-out infinite;
+}
+.dot-pulse span:nth-child(2){animation-delay:.22s}
+.dot-pulse span:nth-child(3){animation-delay:.44s}
+@keyframes dp{0%,80%,100%{opacity:.2;transform:scale(.6)}40%{opacity:1;transform:scale(1)}}
+
+/* ─── Progress bar (top) ─────────────────────────────────────────────────── */
+#topBar{
+  position:fixed;top:0;left:0;right:0;height:3px;z-index:40;
+  background:transparent;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .7s cubic-bezier(.4,0,.2,1);
+}
+#topBar.show{
+  background:var(--accent);
+  transform:scaleX(1);
+}
+
+/* ─── Toast ──────────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed;top:40px;left:50%;
+  transform:translateX(-50%) translateY(-72px);
+  background:rgba(15,15,15,0.95);
+  backdrop-filter:blur(24px);
+  border:1px solid var(--border);
+  border-radius:40px;
+  padding:10px 26px;
+  font-size:14px;font-weight:500;
+  color:var(--text);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  z-index:90;white-space:nowrap;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ─── Stats ──────────────────────────────────────────────────────────────── */
+#statsBadge{
+  position:fixed;top:24px;right:32px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--text-dim);
+  z-index:30;text-align:right;line-height:1.8;
+  pointer-events:none;letter-spacing:.5px;
+}
+
+/* ─── Unmute ─────────────────────────────────────────────────────────────── */
+#unmuteBtn{
+  position:fixed;bottom:48px;right:48px;
+  background:rgba(15,15,15,.9);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:40px;
+  color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:15px;font-weight:500;
+  padding:14px 28px;cursor:pointer;z-index:60;display:none;
+}
+
+/* ─── Play flash ─────────────────────────────────────────────────────────── */
+#playFlash{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(.5);
+  width:80px;height:80px;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(8px);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;z-index:30;
+  transition:opacity .15s ease,transform .15s ease;
+}
+#playFlash.flash{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#playFlash svg{width:32px;height:32px;fill:white;margin-left:4px}
+#playFlash.pause-flash svg{margin-left:0}
+
+/* ─── TV Overlay ─────────────────────────────────────────────────────────── */
+#tvOverlay{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;
+  padding:0 64px 52px;
+  background:linear-gradient(
+    transparent 0%,
+    rgba(0,0,0,0.3) 20%,
+    rgba(0,0,0,0.75) 55%,
+    rgba(0,0,0,.97) 100%
+  );
+  transform:translateY(102%);
+  transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+#tvOverlay.visible{transform:translateY(0)}
+
+/* Title row */
+.ov-title-row{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  margin-bottom:24px;
+}
+#mediaTitle{
+  font-size:26px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:70%;line-height:1.2;
+}
+.ov-meta{
+  font-size:13px;color:var(--text-secondary);
+  font-family:'JetBrains Mono',monospace;
+  text-align:right;line-height:1.8;
+}
+
+/* Seek bar */
+.seek-wrap{margin-bottom:20px}
+.seek-times{
+  display:flex;justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;color:var(--text-secondary);
+  margin-bottom:10px;
+}
+
+.seek-track{
+  position:relative;height:4px;
+  background:rgba(255,255,255,0.18);
+  border-radius:2px;cursor:pointer;
+}
+.seek-track.focused{outline:none}
+.seek-track.focused::after{
+  content:'';position:absolute;inset:-6px;border-radius:8px;
+  box-shadow:0 0 0 2px rgba(255,255,255,0.2);pointer-events:none;
+}
+
+#seekFill{
+  height:100%;border-radius:2px;
+  background:var(--text);
+  width:0%;pointer-events:none;
+  transition:width .25s linear;
+  position:relative;
+}
+#seekFill::after{
+  content:'';
+  position:absolute;right:-8px;top:50%;
+  transform:translateY(-50%) scale(0);
+  width:16px;height:16px;border-radius:50%;
+  background:var(--text);
+  transition:transform .2s ease;
+  box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+.seek-track.focused #seekFill::after,
+#tvOverlay.visible #seekFill::after{transform:translateY(-50%) scale(1)}
+
+/* Controls */
+.controls-row{
+  display:flex;align-items:center;
+  gap:12px;
+}
+
+.tv-btn{
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface);
+  border:1.5px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius);
+  color:var(--text);
+  font-family:'Outfit',sans-serif;
+  font-weight:600;cursor:pointer;outline:none;
+  transition:background .15s,border-color .15s,transform .1s,box-shadow .15s;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.tv-btn:active{transform:scale(.92)}
+
+/* Focus: bright white outline, no colour change on non-play */
+.tv-btn.focused{
+  border-color:rgba(255,255,255,0.7);
+  background:var(--surface-hover);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.12);
+}
+
+.btn-sm{width:60px;height:60px;border-radius:12px;font-size:12px}
+.btn-md{width:72px;height:72px;border-radius:14px;font-size:13px}
+.btn-play{
+  width:88px;height:88px;border-radius:16px;
+  background:var(--text);color:#000;
+  border-color:transparent;
+}
+.btn-play svg{fill:#000}
+.btn-play.focused{
+  background:#fff;
+  box-shadow:0 0 0 4px rgba(255,255,255,0.25), 0 8px 32px rgba(0,0,0,.5);
+  border-color:transparent;
+}
+
+.spacer{flex:1}
+
+#qualityBtn{
+  font-size:12px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--text-secondary);
+  padding:0 18px;height:40px;width:auto;border-radius:40px;
+  font-family:'JetBrains Mono',monospace;
+}
+#qualityBtn.focused{
+  color:var(--text);
+  border-color:rgba(255,255,255,0.5);
+  background:var(--surface-hover);
+}
+
+/* skip labels */
+.btn-label{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary)}
+.btn-play .btn-label,.btn-play svg{pointer-events:none}
+
+/* ─── Quality Panel ───────────────────────────────────────────────────────── */
+#qualityPanel{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(.96);
+  background:rgba(12,12,12,.97);
+  backdrop-filter:blur(32px);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:32px 40px;
+  min-width:360px;
+  z-index:80;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease;
+}
+#qualityPanel.visible{opacity:1;pointer-events:all;transform:translate(-50%,-50%) scale(1)}
+#qualityPanel h3{
+  font-size:10px;font-weight:700;letter-spacing:4px;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:20px;text-align:center;
+}
+.qp-list{display:flex;flex-direction:column;gap:8px}
+.qp-opt{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-radius:12px;
+  border:1.5px solid rgba(255,255,255,0.07);
+  background:transparent;
+  color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:15px;cursor:pointer;outline:none;
+  transition:all .15s;
+}
+.qp-opt.focused{
+  border-color:rgba(255,255,255,.5);
+  background:rgba(255,255,255,.06);
+  box-shadow:0 0 0 2px rgba(255,255,255,.1);
+}
+.qp-opt.active{
+  background:var(--text);color:#000;
+  border-color:var(--text);
+}
+.qp-opt.active.focused{
+  background:#fff;border-color:#fff;
+  box-shadow:0 0 0 3px rgba(255,255,255,.2);
+}
+.qp-name{font-weight:700;font-size:15px}
+.qp-desc{font-size:12px;opacity:.5}
+.qp-opt.active .qp-desc{opacity:.45;color:#000}
+.qp-hint{font-size:10px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;text-align:center;margin-top:16px}
+</style>
 </head>
 <body>
 
+<!-- Waiting -->
 <div id="waitingScreen">
-    <p class="wt-logo">DirectPlay</p>
-    <div class="wt-card">
-        <p class="wt-label">Your code</p>
-        <div id="codeEl">&#xB7;&#xB7;&#xB7;&#xB7;</div>
-        <p class="wt-sublabel">Enter in the DirectPlay extension</p>
-        <div class="wt-divider"></div>
-        <div id="statusMsg">Waiting for device&hellip;</div>
-        <div class="dot-loader"><span></span><span></span><span></span></div>
-    </div>
+  <p class="ws-brand">DirectCast</p>
+  <div class="ws-card">
+    <p class="ws-label">Your code</p>
+    <div id="codeEl">····</div>
+    <p class="ws-sublabel">Enter this in the DirectCast extension</p>
+    <div class="ws-sep"></div>
+    <div id="statusMsg">Waiting for device…</div>
+    <div class="dot-pulse"><span></span><span></span><span></span></div>
+  </div>
 </div>
 
-<div id="connectedBar"></div>
+<div id="topBar"></div>
 <div id="toast"></div>
 <div id="statsBadge"></div>
-<div id="playFlash">&#x25B6;</div>
 
-<video id="videoEl" autoplay playsinline muted></video>
-<button id="unmuteBtn">&#x1F50A; Press OK to enable audio</button>
-
-<div id="tvOverlay">
-    <div id="mediaTitle">&mdash;</div>
-    <div class="seek-row">
-        <span class="time-label" id="currentTimeEl">0:00</span>
-        <div class="seek-track" id="seekTrack">
-            <div id="seekFill"></div>
-            <div id="seekHandle"></div>
-        </div>
-        <span class="time-label right" id="durationEl">0:00</span>
-    </div>
-    <div class="controls-row">
-        <button class="tv-btn tv-btn-sm" id="skipBackBtn" title="-10s">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38"/><text x="7.5" y="21" font-size="5.5" font-family="DM Sans,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text></svg>
-        </button>
-        <button class="tv-btn tv-btn-md" id="seekBackBtn" title="-5s">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6 2 12l4 6V6z"/><rect x="9" y="6" width="9" height="12" rx="1.5"/></svg>
-        </button>
-        <button class="tv-btn tv-btn-lg" id="playPauseBtn">
-            <svg id="playIcon"  width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-            <svg id="pauseIcon" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-        </button>
-        <button class="tv-btn tv-btn-md" id="seekFwdBtn" title="+5s">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M18 6l4 6-4 6V6z"/><rect x="6" y="6" width="9" height="12" rx="1.5"/></svg>
-        </button>
-        <button class="tv-btn tv-btn-sm" id="skipFwdBtn" title="+10s">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/><text x="7.5" y="21" font-size="5.5" font-family="DM Sans,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text></svg>
-        </button>
-        <div class="controls-spacer"></div>
-        <button class="tv-btn tv-btn-sm" id="qualityBadgeBtn">1080p</button>
-    </div>
+<div id="playFlash">
+  <svg id="flashPlaySvg"  viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
 </div>
 
-<div id="qualityPanel">
-    <h3>Stream Quality</h3>
-    <div class="qp-options" id="qpOptions">
-        <button class="qp-option" data-q="720p"><span class="qp-name">720p</span><span class="qp-desc">1280x720 &middot; Low bandwidth</span></button>
-        <button class="qp-option active" data-q="1080p"><span class="qp-name">1080p</span><span class="qp-desc">1920x1080 &middot; Recommended</span></button>
-        <button class="qp-option" data-q="1440p"><span class="qp-name">1440p</span><span class="qp-desc">2560x1440 &middot; High detail</span></button>
-        <button class="qp-option" data-q="4k"><span class="qp-name">4K</span><span class="qp-desc">3840x2160 &middot; Max quality</span></button>
+<video id="videoEl" autoplay playsinline muted></video>
+<button id="unmuteBtn">🔊 Press OK to enable audio</button>
+
+<!-- TV Overlay -->
+<div id="tvOverlay">
+  <div class="ov-title-row">
+    <div id="mediaTitle">—</div>
+    <div class="ov-meta" id="ovMeta"></div>
+  </div>
+
+  <div class="seek-wrap">
+    <div class="seek-times">
+      <span id="currentTimeEl">0:00</span>
+      <span id="durationEl">0:00</span>
     </div>
-    <p class="qp-hint">Up / Down navigate &nbsp;&bull;&nbsp; OK select &nbsp;&bull;&nbsp; Back close</p>
+    <div class="seek-track" id="seekTrack">
+      <div id="seekFill"></div>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <!-- -10s -->
+    <button class="tv-btn btn-sm" id="skipBackBtn" title="-10s">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+        <text x="7" y="20.5" font-size="5.5" font-family="Outfit,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text>
+      </svg>
+    </button>
+    <!-- -5s -->
+    <button class="tv-btn btn-md" id="seekBackBtn" title="-5s">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6 5.5 2 12l4 6.5V5.5z"/><rect x="8.5" y="5.5" width="10" height="13" rx="2"/>
+      </svg>
+    </button>
+    <!-- Play/Pause -->
+    <button class="tv-btn btn-play" id="playPauseBtn">
+      <svg id="playIcon"  width="36" height="36" viewBox="0 0 24 24" fill="#000"><polygon points="6,3 20,12 6,21"/></svg>
+      <svg id="pauseIcon" width="36" height="36" viewBox="0 0 24 24" fill="#000" style="display:none"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>
+    </button>
+    <!-- +5s -->
+    <button class="tv-btn btn-md" id="seekFwdBtn" title="+5s">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18 5.5l4 6.5-4 6.5V5.5z"/><rect x="5.5" y="5.5" width="10" height="13" rx="2"/>
+      </svg>
+    </button>
+    <!-- +10s -->
+    <button class="tv-btn btn-sm" id="skipFwdBtn" title="+10s">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.5"/>
+        <text x="7" y="20.5" font-size="5.5" font-family="Outfit,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text>
+      </svg>
+    </button>
+
+    <div class="spacer"></div>
+    <button class="tv-btn btn-sm" id="qualityBtn">1080p</button>
+  </div>
+</div>
+
+<!-- Quality Panel -->
+<div id="qualityPanel">
+  <h3>Stream Quality</h3>
+  <div class="qp-list" id="qpList">
+    <button class="qp-opt" data-q="720p"><span class="qp-name">720p</span><span class="qp-desc">Low bandwidth</span></button>
+    <button class="qp-opt active" data-q="1080p"><span class="qp-name">1080p</span><span class="qp-desc">Recommended</span></button>
+    <button class="qp-opt" data-q="1440p"><span class="qp-name">1440p</span><span class="qp-desc">High detail</span></button>
+    <button class="qp-opt" data-q="4k"><span class="qp-name">4K</span><span class="qp-desc">Max quality</span></button>
+  </div>
+  <p class="qp-hint">↑ ↓ navigate &nbsp;·&nbsp; OK select &nbsp;·&nbsp; Back close</p>
 </div>
 
 <script>
 (() => {
-    'use strict';
-    const SIGNAL = '/api/signal';
+'use strict';
 
-    const $ = id => document.getElementById(id);
-    const videoEl         = $('videoEl');
-    const waitingScreen   = $('waitingScreen');
-    const statusMsg       = $('statusMsg');
-    const codeEl          = $('codeEl');
-    const connectedBar    = $('connectedBar');
-    const toast           = $('toast');
-    const statsBadge      = $('statsBadge');
-    const playFlash       = $('playFlash');
-    const unmuteBtn       = $('unmuteBtn');
-    const tvOverlay       = $('tvOverlay');
-    const mediaTitle      = $('mediaTitle');
-    const seekTrack       = $('seekTrack');
-    const seekFill        = $('seekFill');
-    const seekHandle      = $('seekHandle');
-    const currentTimeEl   = $('currentTimeEl');
-    const durationEl      = $('durationEl');
-    const playPauseBtn    = $('playPauseBtn');
-    const playIcon        = $('playIcon');
-    const pauseIcon       = $('pauseIcon');
-    const seekBackBtn     = $('seekBackBtn');
-    const seekFwdBtn      = $('seekFwdBtn');
-    const skipBackBtn     = $('skipBackBtn');
-    const skipFwdBtn      = $('skipFwdBtn');
-    const qualityBadgeBtn = $('qualityBadgeBtn');
-    const qualityPanel    = $('qualityPanel');
-    const qpOptions       = $('qpOptions');
+const SIGNAL = '/api/signal';
+const $ = id => document.getElementById(id);
 
-    // ── Focus model ───────────────────────────────────────────────────────────
-    // mode: 'controls' | 'seekBar' | 'quality'
-    // Controls order: 0=skipBack 1=seekBack 2=playPause 3=seekFwd 4=skipFwd 5=quality
-    const CONTROLS = [skipBackBtn, seekBackBtn, playPauseBtn, seekFwdBtn, skipFwdBtn, qualityBadgeBtn];
-    const QP_OPTS  = Array.from(qpOptions.querySelectorAll('.qp-option'));
-    const focus    = { mode:'controls', controlIdx:2, qualityIdx:1 };
+const videoEl       = $('videoEl');
+const waitingScreen = $('waitingScreen');
+const statusMsg     = $('statusMsg');
+const codeEl        = $('codeEl');
+const topBar        = $('topBar');
+const toast         = $('toast');
+const statsBadge    = $('statsBadge');
+const playFlash     = $('playFlash');
+const flashPlaySvg  = $('flashPlaySvg');
+const unmuteBtn     = $('unmuteBtn');
+const tvOverlay     = $('tvOverlay');
+const mediaTitle    = $('mediaTitle');
+const ovMeta        = $('ovMeta');
+const seekTrack     = $('seekTrack');
+const seekFill      = $('seekFill');
+const currentTimeEl = $('currentTimeEl');
+const durationEl    = $('durationEl');
+const playPauseBtn  = $('playPauseBtn');
+const playIcon      = $('playIcon');
+const pauseIcon     = $('pauseIcon');
+const seekBackBtn   = $('seekBackBtn');
+const seekFwdBtn    = $('seekFwdBtn');
+const skipBackBtn   = $('skipBackBtn');
+const skipFwdBtn    = $('skipFwdBtn');
+const qualityBtn    = $('qualityBtn');
+const qualityPanel  = $('qualityPanel');
+const qpList        = $('qpList');
 
-    function setCtrl(idx) {
-        focus.controlIdx = Math.max(0, Math.min(CONTROLS.length - 1, idx));
-        CONTROLS.forEach((el,i) => el.classList.toggle('focused', i === focus.controlIdx));
-        seekTrack.classList.remove('focused');
+// ── Focus model ───────────────────────────────────────────────────────────────
+const CONTROLS = [skipBackBtn, seekBackBtn, playPauseBtn, seekFwdBtn, skipFwdBtn, qualityBtn];
+const QP_OPTS  = Array.from(qpList.querySelectorAll('.qp-opt'));
+const focus    = { mode:'controls', ctrlIdx:2, qIdx:1 };
+
+function setCtrl(idx) {
+    focus.ctrlIdx = Math.max(0, Math.min(CONTROLS.length - 1, idx));
+    CONTROLS.forEach((el, i) => el.classList.toggle('focused', i === focus.ctrlIdx));
+    seekTrack.classList.remove('focused');
+}
+function setQFocus(idx) {
+    focus.qIdx = Math.max(0, Math.min(QP_OPTS.length - 1, idx));
+    QP_OPTS.forEach((el, i) => el.classList.toggle('focused', i === focus.qIdx));
+}
+function enterSeek() {
+    focus.mode = 'seekBar';
+    CONTROLS.forEach(el => el.classList.remove('focused'));
+    seekTrack.classList.add('focused');
+}
+function exitSeek() {
+    focus.mode = 'controls';
+    seekTrack.classList.remove('focused');
+    setCtrl(focus.ctrlIdx);
+}
+function openQP() {
+    focus.mode = 'quality';
+    qualityPanel.classList.add('visible');
+    const ai = QP_OPTS.findIndex(o => o.classList.contains('active'));
+    setQFocus(ai >= 0 ? ai : 1);
+}
+function closeQP() {
+    focus.mode = 'controls';
+    qualityPanel.classList.remove('visible');
+    setCtrl(CONTROLS.indexOf(qualityBtn));
+}
+
+// ── Playback state ─────────────────────────────────────────────────────────────
+// FIX: All seek/time state is driven by the sender via data channel messages,
+// not from videoEl.currentTime/duration (which is always stream time, not
+// the source video's playback position). The sender pushes 'videoState'
+// packets every second with { currentTime, duration, paused }.
+const playback = {
+    currentTime: 0,
+    duration:    0,
+    paused:      true,
+};
+
+function updateSeekUI() {
+    const { currentTime, duration } = playback;
+    currentTimeEl.textContent = fmt(currentTime);
+    durationEl.textContent    = duration > 0 ? fmt(duration) : '--:--';
+    if (duration > 0) {
+        const pct = (currentTime / duration) * 100;
+        seekFill.style.width = pct + '%';
     }
+}
 
-    function setQFocus(idx) {
-        focus.qualityIdx = Math.max(0, Math.min(QP_OPTS.length - 1, idx));
-        QP_OPTS.forEach((el,i) => el.classList.toggle('focused', i === focus.qualityIdx));
-    }
+function updatePlayUI(paused) {
+    playIcon.style.display  = paused ? '' : 'none';
+    pauseIcon.style.display = paused ? 'none' : '';
+    // swap icon fill: btn-play has black bg so icon is black; keep that
+}
 
-    function enterSeek() {
-        focus.mode = 'seekBar';
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+    code: null, pc: null, dc: null,
+    pollTimer: null, hideTimer: null,
+    quality: '1080p', statsTimer: null, connected: false,
+};
+
+// ── Overlay ───────────────────────────────────────────────────────────────────
+function showOverlay(resetFocus) {
+    tvOverlay.classList.add('visible');
+    if (resetFocus) setCtrl(2);
+    resetHideTimer();
+}
+function resetHideTimer() {
+    clearTimeout(state.hideTimer);
+    state.hideTimer = setTimeout(() => {
+        if (focus.mode === 'quality') return;
+        tvOverlay.classList.remove('visible');
         CONTROLS.forEach(el => el.classList.remove('focused'));
-        seekTrack.classList.add('focused');
-    }
-
-    function exitSeek() {
-        focus.mode = 'controls';
         seekTrack.classList.remove('focused');
-        setCtrl(focus.controlIdx);
-    }
-
-    function openQP() {
-        focus.mode = 'quality';
-        qualityPanel.classList.add('visible');
-        const ai = QP_OPTS.findIndex(o => o.classList.contains('active'));
-        setQFocus(ai >= 0 ? ai : 1);
-    }
-
-    function closeQP() {
         focus.mode = 'controls';
-        qualityPanel.classList.remove('visible');
-        setCtrl(CONTROLS.indexOf(qualityBadgeBtn));
+    }, 6000);
+}
+
+// ── Autoplay ──────────────────────────────────────────────────────────────────
+function attemptPlay() {
+    videoEl.muted = true;
+    videoEl.play().then(() => {
+        videoEl.muted = false;
+        videoEl.play().catch(() => { videoEl.muted = true; unmuteBtn.style.display = 'block'; });
+    }).catch(e => { if (e.name !== 'AbortError') unmuteBtn.style.display = 'block'; });
+}
+unmuteBtn.addEventListener('click', () => {
+    videoEl.muted = false; videoEl.play().catch(() => {}); unmuteBtn.style.display = 'none';
+});
+
+videoEl.addEventListener('play',  () => updatePlayUI(false));
+videoEl.addEventListener('pause', () => updatePlayUI(true));
+
+// ── Stream UI ─────────────────────────────────────────────────────────────────
+function showStreamUI() {
+    if (state.connected) return;
+    state.connected = true;
+    waitingScreen.classList.add('hidden');
+    topBar.classList.add('show');
+    showToast('🎬 Connected');
+    startStats();
+    showOverlay(true);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function doPlayPause() {
+    if (playback.paused) {
+        sendExt({ type: 'resume' });
+        flashIcon('play');
+    } else {
+        sendExt({ type: 'pause' });
+        flashIcon('pause');
+    }
+}
+function doSeek(s) {
+    sendExt({ type: 'seekRelative', seconds: s });
+    showToast(s > 0 ? `+${s}s ⏩` : `${s}s ⏪`);
+    // Optimistically update local time
+    playback.currentTime = Math.max(0, Math.min(playback.duration || Infinity, playback.currentTime + s));
+    updateSeekUI();
+}
+function activateCtrl() {
+    const el = CONTROLS[focus.ctrlIdx];
+    if (el === playPauseBtn)   doPlayPause();
+    else if (el === seekBackBtn)    doSeek(-5);
+    else if (el === seekFwdBtn)     doSeek(5);
+    else if (el === skipBackBtn)    doSeek(-10);
+    else if (el === skipFwdBtn)     doSeek(10);
+    else if (el === qualityBtn)     openQP();
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    const k = e.key;
+
+    if (k === 'MediaPlayPause' || k === 'MediaPlay' || k === 'MediaPause') {
+        doPlayPause(); showOverlay(false); e.preventDefault(); return;
+    }
+    if (k === 'MediaFastForward' || k === 'MediaTrackNext') {
+        doSeek(10); showOverlay(false); e.preventDefault(); return;
+    }
+    if (k === 'MediaRewind' || k === 'MediaTrackPrevious') {
+        doSeek(-10); showOverlay(false); e.preventDefault(); return;
     }
 
-    // ── State ─────────────────────────────────────────────────────────────────
-    const state = { code:null, pc:null, dc:null, pollTimer:null, hideTimer:null,
-                    quality:'1080p', statsTimer:null, connected:false };
-
-    // ── Overlay ───────────────────────────────────────────────────────────────
-    function showOverlay(reset) {
-        tvOverlay.classList.add('visible');
-        if (reset) setCtrl(2);
-        resetHideTimer();
-    }
-
-    function resetHideTimer() {
-        clearTimeout(state.hideTimer);
-        state.hideTimer = setTimeout(() => {
-            if (focus.mode === 'quality') return;
-            tvOverlay.classList.remove('visible');
-            CONTROLS.forEach(el => el.classList.remove('focused'));
-            seekTrack.classList.remove('focused');
-            focus.mode = 'controls';
-        }, 6000);
-    }
-
-    // ── Play icon sync ────────────────────────────────────────────────────────
-    function syncPlay(paused) {
-        playIcon.style.display  = paused ? '' : 'none';
-        pauseIcon.style.display = paused ? 'none' : '';
-    }
-    videoEl.addEventListener('play',  () => syncPlay(false));
-    videoEl.addEventListener('pause', () => syncPlay(true));
-
-    // ── Autoplay ──────────────────────────────────────────────────────────────
-    function attemptPlay() {
-        videoEl.muted = true;
-        videoEl.play().then(() => {
-            videoEl.muted = false;
-            videoEl.play().catch(() => { videoEl.muted = true; unmuteBtn.style.display = 'block'; });
-        }).catch(e => { if (e.name !== 'AbortError') unmuteBtn.style.display = 'block'; });
-    }
-    unmuteBtn.addEventListener('click', () => {
-        videoEl.muted = false; videoEl.play().catch(()=>{}); unmuteBtn.style.display = 'none';
-    });
-
-    // ── Stream UI ─────────────────────────────────────────────────────────────
-    function showStreamUI() {
-        if (state.connected) return;
-        state.connected = true;
-        waitingScreen.classList.add('hidden');
-        connectedBar.classList.add('show');
-        showToast('\uD83C\uDFAC Connected');
-        startStats();
-        showOverlay(true);
-    }
-
-    // ── Actions ───────────────────────────────────────────────────────────────
-    function doPlayPause() {
-        if (videoEl.paused) { sendExt({type:'resume'}); flash('\u25B6'); }
-        else                { sendExt({type:'pause'});  flash('\u23F8'); }
-    }
-    function doSeek(s) {
-        sendExt({type:'seekRelative', seconds:s});
-        showToast(s > 0 ? '+' + s + 's \u23E9' : s + 's \u23EA');
-    }
-    function activateCtrl() {
-        const el = CONTROLS[focus.controlIdx];
-        if (el === playPauseBtn)    doPlayPause();
-        else if (el === seekBackBtn)     doSeek(-5);
-        else if (el === seekFwdBtn)      doSeek(5);
-        else if (el === skipBackBtn)     doSeek(-10);
-        else if (el === skipFwdBtn)      doSeek(10);
-        else if (el === qualityBadgeBtn) openQP();
-    }
-
-    // ── Keyboard ──────────────────────────────────────────────────────────────
-    document.addEventListener('keydown', e => {
-        const k = e.key;
-
-        // Global media keys — work even when overlay hidden
-        if (k === 'MediaPlayPause' || k === 'MediaPlay' || k === 'MediaPause') {
-            doPlayPause(); showOverlay(false); e.preventDefault(); return;
+    if (!tvOverlay.classList.contains('visible')) {
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(k)) {
+            showOverlay(true); e.preventDefault(); return;
         }
-        if (k === 'MediaFastForward' || k === 'MediaTrackNext') {
-            doSeek(10); showOverlay(false); e.preventDefault(); return;
-        }
-        if (k === 'MediaRewind' || k === 'MediaTrackPrevious') {
-            doSeek(-10); showOverlay(false); e.preventDefault(); return;
-        }
-
-        // Any d-pad when overlay hidden: open it
-        if (!tvOverlay.classList.contains('visible')) {
-            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(k)) {
-                showOverlay(true); e.preventDefault(); return;
-            }
-        }
-
-        // Back
-        if (k === 'XF86Back' || k === 'GoBack' || k === 'Escape' || k === 'BrowserBack') {
-            if (focus.mode === 'quality') { closeQP(); resetHideTimer(); }
-            else { tvOverlay.classList.remove('visible'); clearTimeout(state.hideTimer); focus.mode = 'controls'; }
-            e.preventDefault(); return;
-        }
-
-        // Quality panel
-        if (focus.mode === 'quality') {
-            if (k === 'ArrowDown') { setQFocus(focus.qualityIdx + 1); resetHideTimer(); }
-            else if (k === 'ArrowUp') { setQFocus(focus.qualityIdx - 1); resetHideTimer(); }
-            else if (k === 'Enter' || k === ' ') {
-                const opt = QP_OPTS[focus.qualityIdx];
-                if (opt) { setQuality(opt.dataset.q); setTimeout(closeQP, 300); }
-                resetHideTimer();
-            }
-            e.preventDefault(); return;
-        }
-
-        // Seek bar
-        if (focus.mode === 'seekBar') {
-            if (k === 'ArrowLeft')  { doSeek(-5); resetHideTimer(); }
-            else if (k === 'ArrowRight') { doSeek(5); resetHideTimer(); }
-            else if (k === 'ArrowDown') { exitSeek(); resetHideTimer(); }
-            else if (k === 'Enter' || k === ' ') { exitSeek(); resetHideTimer(); }
-            e.preventDefault(); return;
-        }
-
-        // Controls row
-        if (focus.mode === 'controls') {
-            if (k === 'ArrowUp')    { enterSeek(); resetHideTimer(); }
-            else if (k === 'ArrowLeft')  { setCtrl(focus.controlIdx - 1); resetHideTimer(); }
-            else if (k === 'ArrowRight') { setCtrl(focus.controlIdx + 1); resetHideTimer(); }
-            else if (k === 'Enter' || k === ' ') { activateCtrl(); resetHideTimer(); }
-            e.preventDefault();
-        }
-    });
-
-    // ── Quality ───────────────────────────────────────────────────────────────
-    function setQuality(q, notify) {
-        if (notify === undefined) notify = true;
-        state.quality = q;
-        QP_OPTS.forEach(o => o.classList.toggle('active', o.dataset.q === q));
-        qualityBadgeBtn.textContent = q.toUpperCase();
-        if (notify) { sendExt({type:'setQuality', quality:q}); showToast('Quality \u2192 ' + q); }
     }
 
-    // ── Data channel ──────────────────────────────────────────────────────────
-    function sendExt(data) {
-        if (state.dc && state.dc.readyState === 'open') state.dc.send(JSON.stringify(data));
+    if (k === 'XF86Back' || k === 'GoBack' || k === 'Escape' || k === 'BrowserBack') {
+        if (focus.mode === 'quality') { closeQP(); resetHideTimer(); }
+        else { tvOverlay.classList.remove('visible'); clearTimeout(state.hideTimer); focus.mode = 'controls'; }
+        e.preventDefault(); return;
     }
 
-    function onMsg(ev) {
-        if (typeof ev.data !== 'string') return;
+    if (focus.mode === 'quality') {
+        if (k === 'ArrowDown')           { setQFocus(focus.qIdx + 1); resetHideTimer(); }
+        else if (k === 'ArrowUp')        { setQFocus(focus.qIdx - 1); resetHideTimer(); }
+        else if (k === 'Enter' || k === ' ') {
+            const opt = QP_OPTS[focus.qIdx];
+            if (opt) { setQuality(opt.dataset.q); setTimeout(closeQP, 300); }
+            resetHideTimer();
+        }
+        e.preventDefault(); return;
+    }
+
+    if (focus.mode === 'seekBar') {
+        if (k === 'ArrowLeft')           { doSeek(-5); resetHideTimer(); }
+        else if (k === 'ArrowRight')     { doSeek(5); resetHideTimer(); }
+        else if (k === 'ArrowDown')      { exitSeek(); resetHideTimer(); }
+        else if (k === 'Enter' || k === ' ') { exitSeek(); resetHideTimer(); }
+        e.preventDefault(); return;
+    }
+
+    if (focus.mode === 'controls') {
+        if (k === 'ArrowUp')             { enterSeek(); resetHideTimer(); }
+        else if (k === 'ArrowLeft')      { setCtrl(focus.ctrlIdx - 1); resetHideTimer(); }
+        else if (k === 'ArrowRight')     { setCtrl(focus.ctrlIdx + 1); resetHideTimer(); }
+        else if (k === 'Enter' || k === ' ') { activateCtrl(); resetHideTimer(); }
+        e.preventDefault();
+    }
+});
+
+// ── Quality ───────────────────────────────────────────────────────────────────
+function setQuality(q, notify) {
+    if (notify === undefined) notify = true;
+    state.quality = q;
+    QP_OPTS.forEach(o => o.classList.toggle('active', o.dataset.q === q));
+    qualityBtn.textContent = q.toUpperCase();
+    if (notify) { sendExt({ type: 'setQuality', quality: q }); showToast('Quality → ' + q); }
+}
+
+// ── Data channel ──────────────────────────────────────────────────────────────
+function sendExt(data) {
+    if (state.dc && state.dc.readyState === 'open') state.dc.send(JSON.stringify(data));
+}
+
+function onMsg(ev) {
+    if (typeof ev.data !== 'string') return;
+    try {
+        const m = JSON.parse(ev.data);
+        switch (m.type) {
+            case 'metadata':
+                mediaTitle.textContent = m.title || '—';
+                break;
+
+            // FIX: Sender pushes videoState every second — this is the source of
+            // truth for the seek bar. The receiver's videoEl is just a live stream
+            // and has no knowledge of the source video's currentTime or duration.
+            case 'videoState':
+                playback.currentTime = m.currentTime || 0;
+                playback.duration    = m.duration    || 0;
+                playback.paused      = !!m.paused;
+                updateSeekUI();
+                updatePlayUI(playback.paused);
+                if (m.title) mediaTitle.textContent = m.title;
+                // Update meta line: fps from stats + quality
+                break;
+
+            case 'pause':
+                playback.paused = true;
+                updatePlayUI(true);
+                flashIcon('pause');
+                showOverlay(false);
+                break;
+            case 'resume':
+                playback.paused = false;
+                updatePlayUI(false);
+                flashIcon('play');
+                showOverlay(false);
+                break;
+            case 'quality_changed':
+                setQuality(m.quality, false);
+                break;
+        }
+    } catch(e) {}
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function startStats() {
+    clearInterval(state.statsTimer);
+    state.statsTimer = setInterval(async () => {
+        if (!state.pc || state.pc.connectionState !== 'connected') return;
         try {
-            const m = JSON.parse(ev.data);
-            if (m.type === 'metadata')        { mediaTitle.textContent = m.title || '\u2014'; }
-            else if (m.type === 'pause')       { videoEl.pause(); flash('\u23F8'); syncPlay(true); showOverlay(false); }
-            else if (m.type === 'resume')      { videoEl.play().catch(()=>{}); flash('\u25B6'); syncPlay(false); showOverlay(false); }
-            else if (m.type === 'quality_changed') { setQuality(m.quality, false); }
-        } catch(e) {}
-    }
-
-    // ── Progress ──────────────────────────────────────────────────────────────
-    videoEl.addEventListener('timeupdate', () => {
-        const ct = videoEl.currentTime, dur = videoEl.duration;
-        if (!dur || !isFinite(dur)) return;
-        const pct = (ct / dur) * 100;
-        seekFill.style.width  = pct + '%';
-        seekHandle.style.left = pct + '%';
-        currentTimeEl.textContent = fmt(ct);
-        durationEl.textContent    = fmt(dur);
-    });
-
-    // ── Stats ─────────────────────────────────────────────────────────────────
-    function startStats() {
-        clearInterval(state.statsTimer);
-        state.statsTimer = setInterval(async () => {
-            if (!state.pc || state.pc.connectionState !== 'connected') return;
-            try {
-                const stats = await state.pc.getStats();
-                for (const r of stats.values()) {
-                    if (r.type === 'inbound-rtp' && r.kind === 'video') {
-                        const jb = (r.jitterBufferDelay && r.jitterBufferEmittedCount)
-                            ? (r.jitterBufferDelay / r.jitterBufferEmittedCount * 1000).toFixed(0) : '-';
-                        const fr = r.framesPerSecond ? r.framesPerSecond.toFixed(0) : '-';
-                        statsBadge.textContent = jb + 'ms \u00B7 ' + fr + 'fps';
-                    }
+            const stats = await state.pc.getStats();
+            for (const r of stats.values()) {
+                if (r.type === 'inbound-rtp' && r.kind === 'video') {
+                    const jb = (r.jitterBufferDelay && r.jitterBufferEmittedCount)
+                        ? (r.jitterBufferDelay / r.jitterBufferEmittedCount * 1000).toFixed(0) + 'ms'
+                        : '-';
+                    const fr = r.framesPerSecond ? r.framesPerSecond.toFixed(0) + 'fps' : '-';
+                    statsBadge.textContent = jb + ' · ' + fr;
+                    ovMeta.textContent = fr + '\n' + state.quality;
                 }
-            } catch(_) {}
-        }, 1000);
-    }
+            }
+        } catch(_) {}
+    }, 1000);
+}
 
-    // ── Flash ─────────────────────────────────────────────────────────────────
-    function flash(icon) {
-        playFlash.textContent = icon;
-        playFlash.classList.add('flash');
-        setTimeout(() => playFlash.classList.remove('flash'), 500);
+// ── Flash ─────────────────────────────────────────────────────────────────────
+function flashIcon(type) {
+    playFlash.classList.remove('flash','pause-flash');
+    if (type === 'play') {
+        flashPlaySvg.innerHTML = '<polygon points="6,3 20,12 6,21"/>';
+        playFlash.classList.remove('pause-flash');
+    } else {
+        flashPlaySvg.innerHTML = '<rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/>';
+        playFlash.classList.add('pause-flash');
     }
+    void playFlash.offsetWidth; // reflow to restart animation
+    playFlash.classList.add('flash');
+    setTimeout(() => playFlash.classList.remove('flash'), 600);
+}
 
-    let toastT;
-    function showToast(msg) {
-        toast.textContent = msg;
-        toast.classList.add('show');
-        clearTimeout(toastT);
-        toastT = setTimeout(() => toast.classList.remove('show'), 2800);
-    }
+let toastTimer;
+function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+}
 
-    function fmt(s) {
-        if (!s || isNaN(s)) return '0:00';
-        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
-        if (h > 0) return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
-        return m+':'+String(sec).padStart(2,'0');
-    }
+function fmt(s) {
+    if (!s || isNaN(s) || !isFinite(s)) return '0:00';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+    return m + ':' + String(sec).padStart(2,'0');
+}
 
-    // ── WebRTC ────────────────────────────────────────────────────────────────
-    async function init() {
-        state.code = sessionStorage.getItem('cf_code') || makeCode();
-        sessionStorage.setItem('cf_code', state.code);
-        codeEl.textContent    = state.code;
-        statusMsg.textContent = 'Waiting for device\u2026';
-        fetch(SIGNAL + '?code=' + state.code + '&action=clear', {method:'POST'}).catch(()=>{});
-        setTimeout(poll, 300);
-    }
+// ── WebRTC ────────────────────────────────────────────────────────────────────
+async function init() {
+    state.code = sessionStorage.getItem('cf_code') || makeCode();
+    sessionStorage.setItem('cf_code', state.code);
+    codeEl.textContent    = state.code;
+    statusMsg.textContent = 'Waiting for device…';
+    fetch(SIGNAL + '?code=' + state.code + '&action=clear', { method:'POST' }).catch(()=>{});
+    setTimeout(poll, 300);
+}
 
-    function makeCode() {
-        const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        return Array.from({length:4}, () => c[Math.floor(Math.random()*c.length)]).join('');
-    }
+function makeCode() {
+    const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    return Array.from({length:4}, () => c[Math.floor(Math.random() * c.length)]).join('');
+}
 
-    async function poll() {
-        try {
-            const r = await fetch(SIGNAL + '?code=' + state.code + '&role=receiver');
-            const d = await r.json();
-            if (d.offer) { clearTimeout(state.pollTimer); statusMsg.textContent = 'Device found \u2014 connecting\u2026'; await handleOffer(d.offer, d.ice_caster||[]); return; }
-        } catch(e) {}
-        state.pollTimer = setTimeout(poll, 1500);
-    }
+async function poll() {
+    try {
+        const r = await fetch(SIGNAL + '?code=' + state.code + '&role=receiver');
+        const d = await r.json();
+        if (d.offer) {
+            clearTimeout(state.pollTimer);
+            statusMsg.textContent = 'Device found — connecting…';
+            await handleOffer(d.offer, d.ice_caster || []);
+            return;
+        }
+    } catch(e) {}
+    state.pollTimer = setTimeout(poll, 1500);
+}
 
-    async function handleOffer(offer, ice) {
-        if (state.pc) { state.pc.close(); state.pc = null; }
-        state.connected = false;
-        state.pc = new RTCPeerConnection({
-            iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}],
-            bundlePolicy:'max-bundle', rtcpMuxPolicy:'require'
-        });
-        const rs = new MediaStream();
-        videoEl.srcObject = rs;
-        state.pc.ontrack = e => { rs.addTrack(e.track); attemptPlay(); showStreamUI(); };
-        state.pc.ondatachannel = e => {
-            state.dc = e.channel; state.dc.binaryType = 'arraybuffer';
-            state.dc.onopen    = () => { sendExt({type:'ready'}); showStreamUI(); };
-            state.dc.onmessage = onMsg;
-            state.dc.onerror   = ev => { const m = ev && ev.error ? ev.error.message : String(ev); if (m.includes('Abort')||m.includes('Close')) return; console.error(ev); };
-            state.dc.onclose   = () => { showToast('\uD83D\uDCF5 Disconnected'); reset(); };
+async function handleOffer(offer, ice) {
+    if (state.pc) { state.pc.close(); state.pc = null; }
+    state.connected = false;
+    state.pc = new RTCPeerConnection({
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ],
+        bundlePolicy: 'max-bundle', rtcpMuxPolicy: 'require'
+    });
+
+    const rs = new MediaStream();
+    videoEl.srcObject = rs;
+    state.pc.ontrack = e => { rs.addTrack(e.track); attemptPlay(); showStreamUI(); };
+    state.pc.ondatachannel = e => {
+        state.dc = e.channel;
+        state.dc.binaryType = 'arraybuffer';
+        state.dc.onopen    = () => { sendExt({ type: 'ready' }); showStreamUI(); };
+        state.dc.onmessage = onMsg;
+        state.dc.onerror   = ev => {
+            const msg = ev?.error?.message || String(ev);
+            if (msg.includes('Abort') || msg.includes('Close')) return;
+            console.error('[receiver dc]', ev);
         };
-        const rxIce = [];
-        state.pc.onicecandidate = e => { if (e.candidate) rxIce.push(e.candidate); };
-        state.pc.onconnectionstatechange = () => {
-            const cs = state.pc && state.pc.connectionState;
-            if (cs === 'connected') attemptPlay();
-            if (cs === 'disconnected' || cs === 'failed') { showToast('\uD83D\uDCF5 Disconnected'); reset(); }
+        state.dc.onclose = () => { showToast('📵 Disconnected'); reset(); };
+    };
+
+    const rxIce = [];
+    state.pc.onicecandidate = e => { if (e.candidate) rxIce.push(e.candidate); };
+    state.pc.onconnectionstatechange = () => {
+        const cs = state.pc?.connectionState;
+        if (cs === 'connected') attemptPlay();
+        if (cs === 'disconnected' || cs === 'failed') { showToast('📵 Disconnected'); reset(); }
+    };
+
+    await state.pc.setRemoteDescription({ type:'offer', sdp:offer });
+    for (const c of ice) await state.pc.addIceCandidate(c).catch(()=>{});
+    const ans = await state.pc.createAnswer();
+    await state.pc.setLocalDescription(ans);
+    await iceWait(1000);
+
+    await fetch(SIGNAL + '?code=' + state.code + '&action=answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answer: state.pc.localDescription.sdp, ice: rxIce })
+    });
+}
+
+function reset() {
+    clearInterval(state.statsTimer);
+    state.connected = false;
+    playback.currentTime = 0; playback.duration = 0; playback.paused = true;
+    updateSeekUI(); updatePlayUI(true);
+    topBar.classList.remove('show');
+    tvOverlay.classList.remove('visible');
+    waitingScreen.classList.remove('hidden');
+    statusMsg.textContent = 'Waiting for device…';
+    videoEl.srcObject = null;
+    if (state.pc) { state.pc.close(); state.pc = null; }
+    state.dc = null;
+    fetch(SIGNAL + '?code=' + state.code + '&action=clear', { method:'POST' }).catch(()=>{});
+    setTimeout(poll, 300);
+}
+
+function iceWait(ms) {
+    return new Promise(res => {
+        if (!state.pc || state.pc.iceGatheringState === 'complete') { res(); return; }
+        const chk = () => {
+            if (state.pc?.iceGatheringState === 'complete') {
+                state.pc.removeEventListener('icegatheringstatechange', chk);
+                res();
+            }
         };
-        await state.pc.setRemoteDescription({type:'offer', sdp:offer});
-        for (const c of ice) await state.pc.addIceCandidate(c).catch(()=>{});
-        const ans = await state.pc.createAnswer();
-        await state.pc.setLocalDescription(ans);
-        await iceWait(1000);
-        await fetch(SIGNAL + '?code=' + state.code + '&action=answer', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({answer: state.pc.localDescription.sdp, ice: rxIce})
-        });
-    }
+        state.pc.addEventListener('icegatheringstatechange', chk);
+        setTimeout(() => { if (state.pc) state.pc.removeEventListener('icegatheringstatechange', chk); res(); }, ms);
+    });
+}
 
-    function reset() {
-        clearInterval(state.statsTimer); state.connected = false;
-        connectedBar.classList.remove('show'); tvOverlay.classList.remove('visible');
-        waitingScreen.classList.remove('hidden'); statusMsg.textContent = 'Waiting for device\u2026';
-        videoEl.srcObject = null;
-        if (state.pc) { state.pc.close(); state.pc = null; } state.dc = null;
-        fetch(SIGNAL + '?code=' + state.code + '&action=clear', {method:'POST'}).catch(()=>{});
-        setTimeout(poll, 300);
-    }
-
-    function iceWait(ms) {
-        return new Promise(res => {
-            if (!state.pc || state.pc.iceGatheringState === 'complete') { res(); return; }
-            const chk = () => { if (state.pc && state.pc.iceGatheringState === 'complete') { state.pc.removeEventListener('icegatheringstatechange',chk); res(); } };
-            state.pc.addEventListener('icegatheringstatechange', chk);
-            setTimeout(() => { if (state.pc) state.pc.removeEventListener('icegatheringstatechange',chk); res(); }, ms);
-        });
-    }
-
-    init();
+init();
 })();
 </script>
 </body>
