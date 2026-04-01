@@ -242,7 +242,6 @@ body{cursor:none}
 }
 .tv-btn:active{transform:scale(.92)}
 
-/* Focus: bright white outline, no colour change on non-play */
 .tv-btn.focused{
   border-color:rgba(255,255,255,0.7);
   background:var(--surface-hover);
@@ -277,7 +276,6 @@ body{cursor:none}
   background:var(--surface-hover);
 }
 
-/* skip labels */
 .btn-label{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-secondary)}
 .btn-play .btn-label,.btn-play svg{pointer-events:none}
 
@@ -349,7 +347,7 @@ body{cursor:none}
 <div id="statsBadge"></div>
 
 <div id="playFlash">
-  <svg id="flashPlaySvg"  viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
+  <svg id="flashPlaySvg" viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg>
 </div>
 
 <video id="videoEl" autoplay playsinline muted></video>
@@ -365,7 +363,7 @@ body{cursor:none}
   <div class="seek-wrap">
     <div class="seek-times">
       <span id="currentTimeEl">0:00</span>
-      <span id="durationEl">0:00</span>
+      <span id="durationEl">--:--</span>
     </div>
     <div class="seek-track" id="seekTrack">
       <div id="seekFill"></div>
@@ -494,10 +492,9 @@ function closeQP() {
 }
 
 // ── Playback state ─────────────────────────────────────────────────────────────
-// FIX: All seek/time state is driven by the sender via data channel messages,
-// not from videoEl.currentTime/duration (which is always stream time, not
-// the source video's playback position). The sender pushes 'videoState'
-// packets every second with { currentTime, duration, paused }.
+// All seek/time state is driven by the sender via 'videoState' data channel
+// messages. The receiver's <video> is a raw WebRTC stream with no meaningful
+// currentTime or duration of its own.
 const playback = {
     currentTime: 0,
     duration:    0,
@@ -507,17 +504,17 @@ const playback = {
 function updateSeekUI() {
     const { currentTime, duration } = playback;
     currentTimeEl.textContent = fmt(currentTime);
-    durationEl.textContent    = duration > 0 ? fmt(duration) : '--:--';
+    durationEl.textContent    = (duration > 0) ? fmt(duration) : '--:--';
     if (duration > 0) {
-        const pct = (currentTime / duration) * 100;
-        seekFill.style.width = pct + '%';
+        seekFill.style.width = ((currentTime / duration) * 100) + '%';
+    } else {
+        seekFill.style.width = '0%';
     }
 }
 
 function updatePlayUI(paused) {
     playIcon.style.display  = paused ? '' : 'none';
     pauseIcon.style.display = paused ? 'none' : '';
-    // swap icon fill: btn-play has black bg so icon is black; keep that
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -572,30 +569,102 @@ function showStreamUI() {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 function doPlayPause() {
+    // FIX: Send 'pause' or 'resume' based on current playback state so the
+    // background can handle them distinctly. Previously sent 'resume'/'pause'
+    // but background only handled 'togglePlayPause'. Now both sides agree.
     if (playback.paused) {
         sendExt({ type: 'resume' });
+        playback.paused = false;
+        updatePlayUI(false);
         flashIcon('play');
     } else {
         sendExt({ type: 'pause' });
+        playback.paused = true;
+        updatePlayUI(true);
         flashIcon('pause');
     }
 }
-function doSeek(s) {
+
+function doSeekRelative(s) {
     sendExt({ type: 'seekRelative', seconds: s });
     showToast(s > 0 ? `+${s}s ⏩` : `${s}s ⏪`);
-    // Optimistically update local time
-    playback.currentTime = Math.max(0, Math.min(playback.duration || Infinity, playback.currentTime + s));
+    // Optimistically update local time so UI feels instant
+    playback.currentTime = Math.max(0, Math.min(
+        playback.duration > 0 ? playback.duration : Infinity,
+        playback.currentTime + s
+    ));
     updateSeekUI();
 }
+
+// FIX: New absolute seek function. Used when the user clicks/drags the seek
+// bar to a specific position rather than nudging relative to current time.
+function doSeekTo(targetTime) {
+    if (playback.duration <= 0) return;
+    const clamped = Math.max(0, Math.min(playback.duration, targetTime));
+    sendExt({ type: 'seekTo', time: clamped });
+    showToast('Seeking…');
+    playback.currentTime = clamped;
+    updateSeekUI();
+}
+
 function activateCtrl() {
     const el = CONTROLS[focus.ctrlIdx];
-    if (el === playPauseBtn)   doPlayPause();
-    else if (el === seekBackBtn)    doSeek(-5);
-    else if (el === seekFwdBtn)     doSeek(5);
-    else if (el === skipBackBtn)    doSeek(-10);
-    else if (el === skipFwdBtn)     doSeek(10);
-    else if (el === qualityBtn)     openQP();
+    if (el === playPauseBtn)  doPlayPause();
+    else if (el === seekBackBtn)   doSeekRelative(-5);
+    else if (el === seekFwdBtn)    doSeekRelative(5);
+    else if (el === skipBackBtn)   doSeekRelative(-10);
+    else if (el === skipFwdBtn)    doSeekRelative(10);
+    else if (el === qualityBtn)    openQP();
 }
+
+// ── Seek bar click/drag ───────────────────────────────────────────────────────
+// FIX: Allow clicking the seek bar track to jump to a position absolutely.
+// Previously there was no mouse interaction on the seek bar at all.
+let seekDragging = false;
+
+function seekTrackPositionToTime(clientX) {
+    const rect = seekTrack.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return pct * playback.duration;
+}
+
+seekTrack.addEventListener('mousedown', e => {
+    if (playback.duration <= 0) return;
+    seekDragging = true;
+    const t = seekTrackPositionToTime(e.clientX);
+    playback.currentTime = t;
+    updateSeekUI();
+    e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+    if (!seekDragging || playback.duration <= 0) return;
+    playback.currentTime = seekTrackPositionToTime(e.clientX);
+    updateSeekUI();
+});
+document.addEventListener('mouseup', e => {
+    if (!seekDragging) return;
+    seekDragging = false;
+    doSeekTo(seekTrackPositionToTime(e.clientX));
+});
+
+// Touch support for seek bar
+seekTrack.addEventListener('touchstart', e => {
+    if (playback.duration <= 0) return;
+    seekDragging = true;
+    playback.currentTime = seekTrackPositionToTime(e.touches[0].clientX);
+    updateSeekUI();
+    e.preventDefault();
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+    if (!seekDragging || playback.duration <= 0) return;
+    playback.currentTime = seekTrackPositionToTime(e.touches[0].clientX);
+    updateSeekUI();
+}, { passive: false });
+document.addEventListener('touchend', e => {
+    if (!seekDragging) return;
+    seekDragging = false;
+    doSeekTo(playback.currentTime);
+});
 
 // ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
@@ -605,10 +674,10 @@ document.addEventListener('keydown', e => {
         doPlayPause(); showOverlay(false); e.preventDefault(); return;
     }
     if (k === 'MediaFastForward' || k === 'MediaTrackNext') {
-        doSeek(10); showOverlay(false); e.preventDefault(); return;
+        doSeekRelative(10); showOverlay(false); e.preventDefault(); return;
     }
     if (k === 'MediaRewind' || k === 'MediaTrackPrevious') {
-        doSeek(-10); showOverlay(false); e.preventDefault(); return;
+        doSeekRelative(-10); showOverlay(false); e.preventDefault(); return;
     }
 
     if (!tvOverlay.classList.contains('visible')) {
@@ -624,8 +693,8 @@ document.addEventListener('keydown', e => {
     }
 
     if (focus.mode === 'quality') {
-        if (k === 'ArrowDown')           { setQFocus(focus.qIdx + 1); resetHideTimer(); }
-        else if (k === 'ArrowUp')        { setQFocus(focus.qIdx - 1); resetHideTimer(); }
+        if (k === 'ArrowDown')               { setQFocus(focus.qIdx + 1); resetHideTimer(); }
+        else if (k === 'ArrowUp')            { setQFocus(focus.qIdx - 1); resetHideTimer(); }
         else if (k === 'Enter' || k === ' ') {
             const opt = QP_OPTS[focus.qIdx];
             if (opt) { setQuality(opt.dataset.q); setTimeout(closeQP, 300); }
@@ -635,18 +704,18 @@ document.addEventListener('keydown', e => {
     }
 
     if (focus.mode === 'seekBar') {
-        if (k === 'ArrowLeft')           { doSeek(-5); resetHideTimer(); }
-        else if (k === 'ArrowRight')     { doSeek(5); resetHideTimer(); }
-        else if (k === 'ArrowDown')      { exitSeek(); resetHideTimer(); }
-        else if (k === 'Enter' || k === ' ') { exitSeek(); resetHideTimer(); }
+        if (k === 'ArrowLeft')               { doSeekRelative(-5); resetHideTimer(); }
+        else if (k === 'ArrowRight')         { doSeekRelative(5);  resetHideTimer(); }
+        else if (k === 'ArrowDown')          { exitSeek();          resetHideTimer(); }
+        else if (k === 'Enter' || k === ' ') { exitSeek();          resetHideTimer(); }
         e.preventDefault(); return;
     }
 
     if (focus.mode === 'controls') {
-        if (k === 'ArrowUp')             { enterSeek(); resetHideTimer(); }
-        else if (k === 'ArrowLeft')      { setCtrl(focus.ctrlIdx - 1); resetHideTimer(); }
-        else if (k === 'ArrowRight')     { setCtrl(focus.ctrlIdx + 1); resetHideTimer(); }
-        else if (k === 'Enter' || k === ' ') { activateCtrl(); resetHideTimer(); }
+        if (k === 'ArrowUp')                 { enterSeek();                          resetHideTimer(); }
+        else if (k === 'ArrowLeft')          { setCtrl(focus.ctrlIdx - 1);           resetHideTimer(); }
+        else if (k === 'ArrowRight')         { setCtrl(focus.ctrlIdx + 1);           resetHideTimer(); }
+        else if (k === 'Enter' || k === ' ') { activateCtrl();                       resetHideTimer(); }
         e.preventDefault();
     }
 });
@@ -662,7 +731,9 @@ function setQuality(q, notify) {
 
 // ── Data channel ──────────────────────────────────────────────────────────────
 function sendExt(data) {
-    if (state.dc && state.dc.readyState === 'open') state.dc.send(JSON.stringify(data));
+    if (state.dc && state.dc.readyState === 'open') {
+        state.dc.send(JSON.stringify(data));
+    }
 }
 
 function onMsg(ev) {
@@ -670,35 +741,43 @@ function onMsg(ev) {
     try {
         const m = JSON.parse(ev.data);
         switch (m.type) {
+
             case 'metadata':
                 mediaTitle.textContent = m.title || '—';
                 break;
 
-            // FIX: Sender pushes videoState every second — this is the source of
-            // truth for the seek bar. The receiver's videoEl is just a live stream
-            // and has no knowledge of the source video's currentTime or duration.
+            // FIX: Primary source of truth for seek state. The sender pushes
+            // this every second. We only apply it when the user isn't actively
+            // dragging the seek bar (seekDragging guard).
             case 'videoState':
-                playback.currentTime = m.currentTime || 0;
-                playback.duration    = m.duration    || 0;
-                playback.paused      = !!m.paused;
-                updateSeekUI();
-                updatePlayUI(playback.paused);
+                if (!seekDragging) {
+                    playback.currentTime = m.currentTime || 0;
+                    playback.duration    = m.duration    || 0;
+                    playback.paused      = !!m.paused;
+                    updateSeekUI();
+                    updatePlayUI(playback.paused);
+                }
                 if (m.title) mediaTitle.textContent = m.title;
-                // Update meta line: fps from stats + quality
+                ovMeta.textContent = state.quality;
                 break;
 
+            // FIX: Handle pause/resume messages pushed from background when
+            // another client (popup) triggers play/pause, so the receiver UI
+            // stays in sync even when it didn't initiate the action.
             case 'pause':
                 playback.paused = true;
                 updatePlayUI(true);
                 flashIcon('pause');
                 showOverlay(false);
                 break;
+
             case 'resume':
                 playback.paused = false;
                 updatePlayUI(false);
                 flashIcon('play');
                 showOverlay(false);
                 break;
+
             case 'quality_changed':
                 setQuality(m.quality, false);
                 break;
@@ -720,7 +799,7 @@ function startStats() {
                         : '-';
                     const fr = r.framesPerSecond ? r.framesPerSecond.toFixed(0) + 'fps' : '-';
                     statsBadge.textContent = jb + ' · ' + fr;
-                    ovMeta.textContent = fr + '\n' + state.quality;
+                    ovMeta.textContent     = fr + '\n' + state.quality;
                 }
             }
         } catch(_) {}
@@ -737,7 +816,7 @@ function flashIcon(type) {
         flashPlaySvg.innerHTML = '<rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/>';
         playFlash.classList.add('pause-flash');
     }
-    void playFlash.offsetWidth; // reflow to restart animation
+    void playFlash.offsetWidth;
     playFlash.classList.add('flash');
     setTimeout(() => playFlash.classList.remove('flash'), 600);
 }
@@ -752,8 +831,8 @@ function showToast(msg) {
 
 function fmt(s) {
     if (!s || isNaN(s) || !isFinite(s)) return '0:00';
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
+    const h   = Math.floor(s / 3600);
+    const m   = Math.floor((s % 3600) / 60);
     const sec = Math.floor(s % 60);
     if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
     return m + ':' + String(sec).padStart(2,'0');
@@ -791,6 +870,7 @@ async function poll() {
 async function handleOffer(offer, ice) {
     if (state.pc) { state.pc.close(); state.pc = null; }
     state.connected = false;
+
     state.pc = new RTCPeerConnection({
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -801,11 +881,23 @@ async function handleOffer(offer, ice) {
 
     const rs = new MediaStream();
     videoEl.srcObject = rs;
-    state.pc.ontrack = e => { rs.addTrack(e.track); attemptPlay(); showStreamUI(); };
+
+    state.pc.ontrack = e => {
+        rs.addTrack(e.track);
+        attemptPlay();
+        showStreamUI();
+    };
+
     state.pc.ondatachannel = e => {
         state.dc = e.channel;
         state.dc.binaryType = 'arraybuffer';
-        state.dc.onopen    = () => { sendExt({ type: 'ready' }); showStreamUI(); };
+        state.dc.onopen    = () => {
+            // FIX: On data channel open, immediately request current video state
+            // from the sender so the seek bar populates right away instead of
+            // waiting up to 1 second for the next push cycle.
+            sendExt({ type: 'ready' });
+            showStreamUI();
+        };
         state.dc.onmessage = onMsg;
         state.dc.onerror   = ev => {
             const msg = ev?.error?.message || String(ev);
@@ -830,22 +922,25 @@ async function handleOffer(offer, ice) {
     await iceWait(1000);
 
     await fetch(SIGNAL + '?code=' + state.code + '&action=answer', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answer: state.pc.localDescription.sdp, ice: rxIce })
+        body:    JSON.stringify({ answer: state.pc.localDescription.sdp, ice: rxIce })
     });
 }
 
 function reset() {
     clearInterval(state.statsTimer);
-    state.connected = false;
-    playback.currentTime = 0; playback.duration = 0; playback.paused = true;
-    updateSeekUI(); updatePlayUI(true);
+    state.connected      = false;
+    playback.currentTime = 0;
+    playback.duration    = 0;
+    playback.paused      = true;
+    updateSeekUI();
+    updatePlayUI(true);
     topBar.classList.remove('show');
     tvOverlay.classList.remove('visible');
     waitingScreen.classList.remove('hidden');
     statusMsg.textContent = 'Waiting for device…';
-    videoEl.srcObject = null;
+    videoEl.srcObject     = null;
     if (state.pc) { state.pc.close(); state.pc = null; }
     state.dc = null;
     fetch(SIGNAL + '?code=' + state.code + '&action=clear', { method:'POST' }).catch(()=>{});
@@ -862,7 +957,10 @@ function iceWait(ms) {
             }
         };
         state.pc.addEventListener('icegatheringstatechange', chk);
-        setTimeout(() => { if (state.pc) state.pc.removeEventListener('icegatheringstatechange', chk); res(); }, ms);
+        setTimeout(() => {
+            if (state.pc) state.pc.removeEventListener('icegatheringstatechange', chk);
+            res();
+        }, ms);
     });
 }
 
