@@ -1,5 +1,5 @@
 {
-    "name": "castflow-signal",
+    "name": "directcast-signal",
     "version": "1.0.0",
     "description": "CastFlow WebSocket signaling server",
     "main": "server.js",
