@@ -204,6 +204,29 @@ body{cursor:none}
 .qp-opt.active .qp-radio{background:var(--text);border-color:var(--text)}
 .qp-opt.active .qp-radio::after{content:'';width:6px;height:6px;border-radius:50%;background:#000}
 .qp-hint{font-size:10px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;text-align:center;margin-top:12px}
+
+.qp-toggle{
+  width:36px;height:20px;border-radius:10px;
+  background:rgba(255,255,255,0.15);
+  border:1px solid rgba(255,255,255,0.2);
+  flex-shrink:0;position:relative;
+  transition:background .2s,border-color .2s;
+}
+.qp-toggle::after{
+  content:'';position:absolute;
+  top:3px;left:3px;
+  width:12px;height:12px;border-radius:50%;
+  background:rgba(255,255,255,0.5);
+  transition:transform .2s,background .2s;
+}
+.qp-opt.active .qp-toggle{
+  background:var(--text);
+  border-color:var(--text);
+}
+.qp-opt.active .qp-toggle::after{
+  transform:translateX(16px);
+  background:#000;
+}
 </style>
 </head>
 <body>
@@ -334,6 +357,13 @@ body{cursor:none}
       <div class="qp-radio"></div>
     </button>
   </div>
+
+  <div style="width:100%;height:1px;background:rgba(255,255,255,0.08);margin:14px 0"></div>
+
+  <button class="qp-opt" id="cropBarsBtn">
+    <div class="qp-info"><div class="qp-name">Crop bars</div><div class="qp-desc">Zoom to remove black bars</div></div>
+    <div class="qp-toggle" id="cropBarsToggle"></div>
+  </button>
   <p class="qp-hint">↑ ↓ navigate &nbsp;·&nbsp; OK select &nbsp;·&nbsp; Back close</p>
 </div>
 
@@ -383,8 +413,19 @@ function setCtrl(idx){
 function setQFocus(idx){ focus.qIdx=Math.max(0,Math.min(QP_OPTS.length-1,idx)); QP_OPTS.forEach((el,i)=>el.classList.toggle('focused',i===focus.qIdx)); }
 function enterSeek(){ focus.mode='seekBar'; CONTROLS.forEach(el=>el.classList.remove('focused')); seekTrack.classList.add('focused'); }
 function exitSeek(){ focus.mode='controls'; seekTrack.classList.remove('focused'); setCtrl(focus.ctrlIdx); }
-function openQP(){ focus.mode='quality'; qualityPanel.classList.add('visible'); const ai=QP_OPTS.findIndex(o=>o.classList.contains('active')); setQFocus(ai>=0?ai:1); }
-function closeQP(){ focus.mode='controls'; qualityPanel.classList.remove('visible'); setCtrl(CONTROLS.indexOf(qualityBtn)); }
+function openQP(){
+  focus.mode='quality';
+  qualityPanel.classList.add('visible');
+  const ai=QP_OPTS.findIndex(o=>o.classList.contains('active'));
+  setQFocus(ai>=0?ai:1);
+}
+
+const ALL_QP = ()=> [...QP_OPTS, cropBarsBtn];
+function setQFocus(idx){
+  const all=ALL_QP();
+  focus.qIdx=Math.max(0,Math.min(all.length-1,idx));
+  all.forEach((el,i)=>el.classList.toggle('focused',i===focus.qIdx));
+}
 
 const playback = { currentTime:0, duration:0, paused:true };
 
@@ -398,7 +439,7 @@ function updatePlayUI(paused){
     pauseIcon.style.display=paused?'none':'';
 }
 
-const state = { code:null, pc:null, dc:null, pollTimer:null, hideTimer:null, quality:'1080p', statsTimer:null, connected:false };
+const state = { code:null, pc:null, dc:null, pollTimer:null, hideTimer:null, quality:'1080p', statsTimer:null, connected:false, cropBars:false };
 
 function showOverlay(resetFocus){
     tvOverlay.classList.add('visible');
@@ -457,13 +498,18 @@ function stretchVideo(){
   const vw=videoEl.videoWidth, vh=videoEl.videoHeight;
   if(!vw||!vh){ videoEl.style.transform=''; return; }
   const sw=window.innerWidth, sh=window.innerHeight;
-  const sx=sw/vw, sy=sh/vh;
+  let sx=sw/vw, sy=sh/vh;
+  if(state.cropBars){
+    // scale uniformly so the smaller dimension fills the screen, cropping the bars
+    const s=Math.max(sx,sy);
+    sx=s; sy=s;
+  }
   videoEl.style.width=vw+'px';
   videoEl.style.height=vh+'px';
-  videoEl.style.top='0';
-  videoEl.style.left='0';
-  videoEl.style.transform=`scale(${sx},${sy})`;
-  videoEl.style.transformOrigin='top left';
+  videoEl.style.top='50%';
+  videoEl.style.left='50%';
+  videoEl.style.transform=`translate(-50%,-50%) scale(${sx},${sy})`;
+  videoEl.style.transformOrigin='center center';
 }
 videoEl.addEventListener('loadedmetadata', stretchVideo);
 videoEl.addEventListener('resize', stretchVideo);
@@ -524,6 +570,16 @@ skipBackBtn.addEventListener('click',  ()=>{ doSeekRelative(-10); showOverlay(fa
 skipFwdBtn.addEventListener('click',   ()=>{ doSeekRelative(10);  showOverlay(false); });
 qualityBtn.addEventListener('click',   ()=>{ openQP(); });
 
+const cropBarsBtn = $('cropBarsBtn');
+cropBarsBtn.addEventListener('click', ()=>{ toggleCropBars(); });
+
+function toggleCropBars(){
+  state.cropBars = !state.cropBars;
+  cropBarsBtn.classList.toggle('active', state.cropBars);
+  stretchVideo();
+  showToast(state.cropBars ? 'Crop bars on' : 'Crop bars off');
+}
+
 let seekDragging=false;
 function seekPosToTime(cx){
     const r=seekTrack.getBoundingClientRect();
@@ -583,7 +639,12 @@ document.addEventListener('keydown', e=>{
     if(focus.mode==='quality'){
         if(k==='ArrowDown')   setQFocus(focus.qIdx+1);
         else if(k==='ArrowUp') setQFocus(focus.qIdx-1);
-        else if(k==='Enter'||k===' '){ const o=QP_OPTS[focus.qIdx]; if(o){ setQuality(o.dataset.q); setTimeout(closeQP,300); } }
+        else if(k==='Enter'||k===' '){
+          const all=ALL_QP();
+          const o=all[focus.qIdx];
+          if(o===cropBarsBtn){ toggleCropBars(); }
+          else if(o){ setQuality(o.dataset.q); setTimeout(closeQP,300); }
+        }
         resetHideTimer(); e.preventDefault(); return;
     }
     if(focus.mode==='seekBar'){
