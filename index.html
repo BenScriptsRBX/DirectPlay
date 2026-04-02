@@ -19,7 +19,7 @@ body{cursor:none}
 /* ── Video fills the entire screen ── */
 #videoEl{
   position:fixed;inset:0;width:100%;height:100%;
-  object-fit:fill;   /* stretch to fill — no letterbox */
+  object-fit:fill;
   background:#000;
   z-index:0;
 }
@@ -49,7 +49,7 @@ body{cursor:none}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #statsBadge{position:fixed;top:20px;right:28px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);z-index:30;text-align:right;line-height:1.8;pointer-events:none;letter-spacing:.5px}
 
-/* ── Unmute overlay — fullscreen tap to unmute ── */
+/* ── Unmute overlay ── */
 #unmuteOverlay{
   position:fixed;inset:0;
   background:rgba(0,0,0,0.7);
@@ -76,56 +76,56 @@ body{cursor:none}
 #playFlash svg{width:28px;height:28px;fill:white;margin-left:3px}
 #playFlash.pause-flash svg{margin-left:0}
 
-/* ── Overlay — wider layout ── */
+/* ── Overlay — full width, no max-width cap ── */
 #tvOverlay{
   position:fixed;bottom:0;left:0;right:0;z-index:20;
-  padding:0 0 48px;
+  padding:0 0 40px;
   background:linear-gradient(transparent 0%,rgba(0,0,0,0.25) 20%,rgba(0,0,0,0.72) 55%,rgba(0,0,0,.98) 100%);
   transform:translateY(104%);transition:transform .35s cubic-bezier(.4,0,.2,1);
 }
 #tvOverlay.visible{transform:translateY(0)}
 
-/* centred column — wider padding */
-.ov-inner{display:flex;flex-direction:column;align-items:center;width:100%;max-width:1100px;margin:0 auto;padding:0 64px}
+/* inner column — stretches edge to edge with comfortable padding */
+.ov-inner{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;
+  padding:0 48px;   /* comfortable breathing room at the edges, no max-width cap */
+}
 
 /* title */
-.ov-title-row{display:flex;align-items:baseline;justify-content:center;gap:14px;margin-bottom:28px;width:100%}
-#mediaTitle{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:700px;line-height:1.2;text-align:center}
+.ov-title-row{display:flex;align-items:baseline;justify-content:center;gap:14px;margin-bottom:24px;width:100%}
+#mediaTitle{font-size:24px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;text-align:center;line-height:1.2}
 #ovMeta{font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;white-space:pre;flex-shrink:0}
 
-/* seek */
-.seek-wrap{width:100%;margin-bottom:36px}
+/* seek — full width */
+.seek-wrap{width:100%;margin-bottom:32px}
 .seek-times{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text-secondary);margin-bottom:12px}
 .seek-track{
-  position:relative;height:4px;
+  position:relative;height:5px;
   background:rgba(255,255,255,0.18);
-  border-radius:2px;cursor:pointer;
+  border-radius:3px;cursor:pointer;
   transition:height .15s ease;
 }
-.seek-track:hover{height:6px}
+.seek-track:hover{height:8px}
 .seek-track.focused::after{content:'';position:absolute;inset:-8px;border-radius:8px;box-shadow:0 0 0 2px rgba(255,255,255,0.18);pointer-events:none}
-#seekFill{height:100%;border-radius:2px;background:var(--text);width:0%;pointer-events:none;transition:width .25s linear;position:relative}
-#seekFill::after{content:'';position:absolute;right:-9px;top:50%;transform:translateY(-50%) scale(0);width:18px;height:18px;border-radius:50%;background:var(--text);transition:transform .2s ease;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#seekFill{height:100%;border-radius:3px;background:var(--text);width:0%;pointer-events:none;transition:width .25s linear;position:relative}
+#seekFill::after{content:'';position:absolute;right:-10px;top:50%;transform:translateY(-50%) scale(0);width:20px;height:20px;border-radius:50%;background:var(--text);transition:transform .2s ease;box-shadow:0 2px 8px rgba(0,0,0,.5)}
 .seek-track:hover #seekFill::after,
 #tvOverlay.visible #seekFill::after{transform:translateY(-50%) scale(1)}
 
-/* ── Controls row — spread across full width ── */
+/* ── Controls row — full width ── */
 .controls-row{
   display:flex;
   align-items:center;
-  justify-content:space-between;   /* spread them out */
+  justify-content:space-between;
   width:100%;
-  padding:0 8px;
+  padding:0;
   gap:0;
 }
 
-/* left cluster: skip-10, back-5 */
-.ctrl-left{display:flex;align-items:center;gap:20px}
-/* center: play */
+.ctrl-left{display:flex;align-items:center;gap:24px}
 .ctrl-center{display:flex;align-items:center}
-/* right cluster: fwd-5, skip-10 */
-.ctrl-right{display:flex;align-items:center;gap:20px}
-/* gear gets pushed to the far right edge */
+.ctrl-right{display:flex;align-items:center;gap:24px}
 .ctrl-gear{display:flex;align-items:center}
 
 .tv-btn{display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer;outline:none;border-radius:999px;transition:background .13s,transform .1s,box-shadow .13s;user-select:none;-webkit-tap-highlight-color:transparent;flex-shrink:0}
@@ -134,7 +134,7 @@ body{cursor:none}
 
 /* skip buttons — larger */
 .btn-skip{
-  width:56px;height:56px;
+  width:64px;height:64px;
   color:rgba(255,255,255,0.75);
   background:rgba(255,255,255,0.05);
   border-radius:50%;
@@ -142,20 +142,22 @@ body{cursor:none}
   transition:background .13s,color .13s,transform .1s;
 }
 .btn-skip:hover,.btn-skip.focused{color:var(--text);background:rgba(255,255,255,0.12)}
+.btn-skip svg{width:28px;height:28px}
 
 /* step ±5 buttons */
 .btn-step{
-  width:52px;height:52px;
+  width:60px;height:60px;
   color:rgba(255,255,255,0.8);
   background:rgba(255,255,255,0.05);
   border-radius:50%;
   border:1px solid rgba(255,255,255,0.08);
 }
 .btn-step:hover,.btn-step.focused{color:var(--text);background:rgba(255,255,255,0.12)}
+.btn-step svg{width:26px;height:26px}
 
-/* play button — large circle */
+/* play button */
 .btn-play{
-  width:80px;height:80px;
+  width:96px;height:96px;
   background:var(--text);color:#000;
   box-shadow:0 4px 24px rgba(0,0,0,0.5);
 }
@@ -165,7 +167,7 @@ body{cursor:none}
 
 /* gear */
 .btn-gear{
-  width:46px;height:46px;
+  width:54px;height:54px;
   background:rgba(255,255,255,0.06);
   border:1px solid rgba(255,255,255,0.08);
   border-radius:50%;
@@ -173,13 +175,14 @@ body{cursor:none}
   transition:background .13s,color .13s,border-color .13s,transform .1s,box-shadow .13s;
 }
 .btn-gear:hover,.btn-gear.focused{background:rgba(255,255,255,0.12);color:var(--text);border-color:rgba(255,255,255,0.25)}
+.btn-gear svg{width:22px;height:22px}
 
-/* ── Quality panel ── */
+/* ── Quality panel — anchored to right edge of overlay ── */
 #qualityPanel{
-  position:fixed;bottom:148px;right:64px;
+  position:fixed;bottom:200px;right:48px;
   background:rgba(12,12,12,.97);backdrop-filter:blur(32px);
   border:1px solid rgba(255,255,255,0.12);border-radius:16px;
-  padding:20px 22px;min-width:210px;z-index:80;
+  padding:20px 22px;min-width:220px;z-index:80;
   opacity:0;pointer-events:none;
   transition:opacity .17s ease,transform .17s ease;
   transform:translateY(10px) scale(.96);transform-origin:bottom right;
@@ -214,7 +217,6 @@ body{cursor:none}
   </div>
 </div>
 
-<!-- Fullscreen tap-to-unmute (works on all smart TVs / browsers) -->
 <div id="unmuteOverlay">
   <div class="unmute-icon">
     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -256,14 +258,14 @@ body{cursor:none}
       <!-- Left: skip -10, step -5 -->
       <div class="ctrl-left">
         <button class="tv-btn btn-skip" id="skipBackBtn" title="-10s">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="1 4 1 10 7 10"/>
             <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
             <text x="7.5" y="21.5" font-size="5" font-family="Outfit,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text>
           </svg>
         </button>
         <button class="tv-btn btn-step" id="seekBackBtn" title="-5s">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 5.5 2 12l4 6.5V5.5z"/>
             <rect x="8.5" y="5.5" width="10" height="13" rx="2"/>
           </svg>
@@ -273,8 +275,8 @@ body{cursor:none}
       <!-- Center: play/pause -->
       <div class="ctrl-center">
         <button class="tv-btn btn-play" id="playPauseBtn">
-          <svg id="playIcon"  width="34" height="34" viewBox="0 0 24 24" fill="#000"><polygon points="7,3 21,12 7,21"/></svg>
-          <svg id="pauseIcon" width="34" height="34" viewBox="0 0 24 24" fill="#000" style="display:none">
+          <svg id="playIcon"  width="40" height="40" viewBox="0 0 24 24" fill="#000"><polygon points="7,3 21,12 7,21"/></svg>
+          <svg id="pauseIcon" width="40" height="40" viewBox="0 0 24 24" fill="#000" style="display:none">
             <rect x="5" y="4" width="4" height="16" rx="1.5"/>
             <rect x="15" y="4" width="4" height="16" rx="1.5"/>
           </svg>
@@ -284,13 +286,13 @@ body{cursor:none}
       <!-- Right: step +5, skip +10 -->
       <div class="ctrl-right">
         <button class="tv-btn btn-step" id="seekFwdBtn" title="+5s">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M18 5.5l4 6.5-4 6.5V5.5z"/>
             <rect x="5.5" y="5.5" width="10" height="13" rx="2"/>
           </svg>
         </button>
         <button class="tv-btn btn-skip" id="skipFwdBtn" title="+10s">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 1 1-.49-3.5"/>
             <text x="7.5" y="21.5" font-size="5" font-family="Outfit,sans-serif" font-weight="700" fill="currentColor" stroke="none">10</text>
@@ -298,10 +300,10 @@ body{cursor:none}
         </button>
       </div>
 
-      <!-- Gear — rightmost -->
+      <!-- Gear — far right -->
       <div class="ctrl-gear">
         <button class="tv-btn btn-gear" id="qualityBtn" title="Quality">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
@@ -415,20 +417,11 @@ function resetHideTimer(){
     }, 6000);
 }
 
-// ── Robust autoplay with fullscreen-tap unmute fallback ──────────────────────
-// Strategy:
-//   1. Try muted autoplay (always works).
-//   2. Immediately try to unmute — succeeds if the user has previously
-//      interacted with the page or the browser policy allows it.
-//   3. If unmuting throws NotAllowedError, show the tap-to-unmute overlay.
-//      Any tap/click on the overlay (or anywhere) will resume with audio.
-
 function attemptPlay(){
     videoEl.muted = true;
     videoEl.play()
         .then(() => tryUnmute())
         .catch(err => {
-            // Autoplay entirely blocked (rare — means the tab was never visible)
             if(err.name !== 'AbortError'){
                 unmuteOverlay.classList.add('visible');
             }
@@ -437,13 +430,11 @@ function attemptPlay(){
 
 function tryUnmute(){
     videoEl.muted = false;
-    // play() must be called again after un-muting to actually deliver audio
     videoEl.play()
         .then(() => {
             unmuteOverlay.classList.remove('visible');
         })
         .catch(err => {
-            // NotAllowedError — browser needs a user gesture
             videoEl.muted = true;
             if(err.name === 'NotAllowedError'){
                 unmuteOverlay.classList.add('visible');
@@ -451,7 +442,6 @@ function tryUnmute(){
         });
 }
 
-// Any interaction dismisses the overlay and enables audio
 function handleUserGesture(){
     if(!unmuteOverlay.classList.contains('visible')) return;
     unmuteOverlay.classList.remove('visible');
@@ -474,7 +464,6 @@ function showStreamUI(){
     showOverlay(true);
 }
 
-// ── Playback commands ────────────────────────────────────────────────────────
 function doPlayPause(){
     if(playback.paused){
         sendExt({type:'resume'});
@@ -513,7 +502,6 @@ function activateCtrl(){
     else if(el===qualityBtn)   openQP();
 }
 
-// ── Button click handlers ────────────────────────────────────────────────────
 playPauseBtn.addEventListener('click', ()=>{ doPlayPause(); showOverlay(false); });
 seekBackBtn.addEventListener('click',  ()=>{ doSeekRelative(-5);  showOverlay(false); });
 seekFwdBtn.addEventListener('click',   ()=>{ doSeekRelative(5);   showOverlay(false); });
@@ -521,7 +509,6 @@ skipBackBtn.addEventListener('click',  ()=>{ doSeekRelative(-10); showOverlay(fa
 skipFwdBtn.addEventListener('click',   ()=>{ doSeekRelative(10);  showOverlay(false); });
 qualityBtn.addEventListener('click',   ()=>{ openQP(); });
 
-// ── Seek bar — mouse & touch ──────────────────────────────────────────────────
 let seekDragging=false;
 function seekPosToTime(cx){
     const r=seekTrack.getBoundingClientRect();
@@ -562,7 +549,6 @@ document.addEventListener('touchend', ()=>{
     doSeekTo(playback.currentTime);
 });
 
-// ── Keyboard / remote ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e=>{
     const k=e.key;
     if(k==='MediaPlayPause'||k==='MediaPlay'||k==='MediaPause'){ doPlayPause(); showOverlay(false); e.preventDefault(); return; }
@@ -608,7 +594,6 @@ function setQuality(q, notify){
     if(notify){ sendExt({type:'setQuality', quality:q}); showToast('Quality → '+q); }
 }
 
-// ── Data channel ─────────────────────────────────────────────────────────────
 function sendExt(data){
     if(state.dc && state.dc.readyState==='open') state.dc.send(JSON.stringify(data));
 }
@@ -651,7 +636,6 @@ function onMsg(ev){
     }
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
 function startStats(){
     clearInterval(state.statsTimer);
     state.statsTimer=setInterval(async()=>{
@@ -670,7 +654,6 @@ function startStats(){
     },1000);
 }
 
-// ── Flash icon ────────────────────────────────────────────────────────────────
 function flashIcon(type){
     playFlash.classList.remove('flash','pause-flash');
     if(type==='play'){
@@ -700,7 +683,6 @@ function fmt(s){
     return m+':'+String(sec).padStart(2,'0');
 }
 
-// ── WebRTC signalling ─────────────────────────────────────────────────────────
 async function init(){
     state.code = sessionStorage.getItem('cf_code') || makeCode();
     sessionStorage.setItem('cf_code', state.code);
@@ -747,7 +729,6 @@ async function handleOffer(offer, ice){
 
     state.pc.ontrack=e=>{
         rs.addTrack(e.track);
-        // Kick off play as soon as we have at least one track
         attemptPlay();
         showStreamUI();
     };
