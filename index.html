@@ -18,7 +18,8 @@ body{cursor:none}
 
 /* ── Video fills the entire screen ── */
 #videoEl{
-  position:fixed;inset:0;
+  position:fixed;
+  top:0;left:0;
   width:100vw;height:100vh;
   object-fit:fill;
   background:#000;
@@ -451,6 +452,22 @@ document.addEventListener('keydown', handleUserGesture, { once: false });
 
 videoEl.addEventListener('play',  ()=>updatePlayUI(false));
 videoEl.addEventListener('pause', ()=>updatePlayUI(true));
+
+function stretchVideo(){
+  const vw=videoEl.videoWidth, vh=videoEl.videoHeight;
+  if(!vw||!vh){ videoEl.style.transform=''; return; }
+  const sw=window.innerWidth, sh=window.innerHeight;
+  const sx=sw/vw, sy=sh/vh;
+  videoEl.style.width=vw+'px';
+  videoEl.style.height=vh+'px';
+  videoEl.style.top='0';
+  videoEl.style.left='0';
+  videoEl.style.transform=`scale(${sx},${sy})`;
+  videoEl.style.transformOrigin='top left';
+}
+videoEl.addEventListener('loadedmetadata', stretchVideo);
+videoEl.addEventListener('resize', stretchVideo);
+window.addEventListener('resize', stretchVideo);
 
 function showStreamUI(){
     if(state.connected) return;
