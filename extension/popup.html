@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DirectCast - Minimal</title>
+    
+    <style>
+        /* ── Base & Variables ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #ffffff;
+            --primary-invert: #000000;
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #171717;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --border: #262626;
+            --border-hover: #404040;
+        }
+
+        body {
+            width: 450px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+
+        .logo svg { stroke: var(--primary); }
+
+        .settings-btn {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .settings-btn:hover {
+            color: var(--primary);
+            border-color: var(--border);
+        }
+
+        /* ── Main View ── */
+        .main-view {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 20px;
+            max-height: calc(100vh - 60px);
+        }
+
+        .main-view::-webkit-scrollbar { width: 4px; }
+        .main-view::-webkit-scrollbar-track { background: transparent; }
+        .main-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .main-view::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* ── Typography & Sections ── */
+        section, .connect-section { margin-bottom: 24px; }
+
+        h2 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        /* ── Connect Section ── */
+        .connect-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+        }
+
+        .code-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        #peerCodeInput {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--primary);
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            font-weight: 400;
+            letter-spacing: 8px;
+            text-align: center;
+            padding: 12px;
+            text-transform: uppercase;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        #peerCodeInput::placeholder {
+            color: var(--border-hover);
+            letter-spacing: 8px;
+        }
+
+        #peerCodeInput:focus { border-color: var(--primary); }
+
+        #statusBar {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-invert);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--bg-primary);
+            color: var(--primary);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { border-color: var(--primary); }
+
+        #connectBtn {
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        /* ── Detected Content ── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 48px 20px;
+            text-align: center;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border: 1px dashed var(--border);
+        }
+
+        .empty-state svg {
+            color: var(--border-hover);
+            margin-bottom: 16px;
+        }
+
+        .empty-state p {
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .empty-state small {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* ── Remote Controls ── */
+        #controlsSection {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 6px;
+        }
+
+        #seekBar, #volumeBar {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+            height: 2px;
+            background: var(--border);
+            -webkit-appearance: none;
+        }
+
+        #seekBar::-webkit-slider-thumb, 
+        #volumeBar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        /* ── Settings View ── */
+        .setting-group { margin-bottom: 24px; }
+
+        .setting-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 13px;
+            transition: all 0.2s ease;
+            appearance: none;
+        }
+
+        .select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-label {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            transition: 0.2s;
+            border-radius: 24px;
+        }
+
+        .toggle-label::before {
+            content: "";
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: 0.2s;
+            border-radius: 50%;
+        }
+
+        .toggle-input:checked + .toggle-label {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .toggle-input:checked + .toggle-label::before {
+            background-color: var(--primary-invert);
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header class="header">
+            <div class="logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 6h20v12H2z"/>
+                    <path d="M6 2h12"/>
+                </svg>
+                <span>DirectCast</span>
+            </div>
+            <button class="settings-btn" id="settingsBtn" title="Settings">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"/>
+                    <circle cx="19" cy="12" r="1"/>
+                    <circle cx="5" cy="12" r="1"/>
+                </svg>
+            </button>
+        </header>
+
+        <div class="main-view" id="mainView">
+
+            <div class="connect-section">
+                <h2>Cast to Device</h2>
+                <div class="code-row">
+                    <input
+                        id="peerCodeInput"
+                        type="text"
+                        maxlength="4"
+                        placeholder="----"
+                        spellcheck="false"
+                        autocomplete="off"
+                    >
+                    <button class="btn btn-primary" id="connectBtn">Cast</button>
+                </div>
+                <div id="statusBar">Enter the code shown on your TV</div>
+            </div>
+
+            <section class="content-section">
+                <h2>Video Detected</h2>
+                <div class="media-preview" id="mediaPreview">
+                    <div class="empty-state">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                            <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        <p>No Signal Detected</p>
+                        <small>Open a video on YouTube, Netflix, or any website</small>
+                    </div>
+                </div>
+            </section>
+
+            <section id="controlsSection" style="display:none;">
+                <h2>Remote Control</h2>
+
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);margin-bottom:8px;">
+                    <span id="currentTimeLabel">0:00</span>
+                    <span id="durationLabel">0:00</span>
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <input type="range" id="seekBar" min="0" max="100" value="0" step="0.1">
+                </div>
+
+                <div style="display:flex;gap:8px;justify-content:center;margin-bottom:24px;">
+                    <button id="backBtn" class="btn btn-secondary" style="flex:1;">-5s</button>
+                    <button id="playPauseBtn" class="btn btn-primary" style="flex:1.5;">Play</button>
+                    <button id="forwardBtn" class="btn btn-secondary" style="flex:1;">+5s</button>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                    <input type="range" id="volumeBar" min="0" max="100" value="100" style="flex:1;">
+                    <span id="volumeLabel" style="font-size:11px;color:var(--text-secondary);width:30px;text-align:right;">100%</span>
+                </div>
+            </section>
+
+            <section class="settings-view" id="settingsView" style="display:none;">
+                <h2>Settings</h2>
+
+                <div class="setting-group" style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="margin:0;">Auto-detect Devices</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="autoDetect" class="toggle-input">
+                        <label for="autoDetect" class="toggle-label"></label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label>Stream Quality</label>
+                    <select id="quality" class="select">
+                        <option value="720p">720p — Low Bandwidth</option>
+                        <option value="1080p" selected>1080p — Recommended</option>
+                        <option value="1440p">1440p — High Detail</option>
+                        <option value="4k">4K — Max Quality</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-secondary" id="backBtn2">Back to Menu</button>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
