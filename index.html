@@ -45,6 +45,50 @@ body{cursor:none}
 .dot-pulse span:nth-child(3){animation-delay:.44s}
 @keyframes dp{0%,80%,100%{opacity:.2;transform:scale(.6)}40%{opacity:1;transform:scale(1)}}
 
+/* ── Download Extension button ── */
+#downloadExtBtn{
+  position:fixed;
+  top:28px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:65;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:10px 22px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.13);
+  border-radius:40px;
+  color:rgba(255,255,255,0.75);
+  font-family:'Outfit',sans-serif;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:.3px;
+  cursor:pointer;
+  backdrop-filter:blur(16px);
+  transition:background .18s,border-color .18s,color .18s,transform .12s,box-shadow .18s;
+  white-space:nowrap;
+  text-decoration:none;
+  outline:none;
+  -webkit-tap-highlight-color:transparent;
+}
+#downloadExtBtn:hover{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.28);
+  color:#fff;
+  box-shadow:0 4px 24px rgba(0,0,0,0.4);
+}
+#downloadExtBtn:active{ transform:translateX(-50%) scale(.95); }
+#downloadExtBtn svg{
+  width:15px;height:15px;
+  flex-shrink:0;
+  opacity:.8;
+  transition:opacity .18s,transform .18s;
+}
+#downloadExtBtn:hover svg{ opacity:1; transform:translateY(1px); }
+#downloadExtBtn.loading svg{ animation:spin .9s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
 /* ── Chrome ── */
 #topBar{position:fixed;top:0;left:0;right:0;height:2px;z-index:40;background:transparent;transform:scaleX(0);transform-origin:left;transition:transform .7s cubic-bezier(.4,0,.2,1)}
 #topBar.show{background:var(--accent);transform:scaleX(1)}
@@ -92,7 +136,7 @@ body{cursor:none}
 .ov-inner{
   display:flex;flex-direction:column;align-items:center;
   width:100%;
-  padding:0 48px;   /* comfortable breathing room at the edges, no max-width cap */
+  padding:0 48px;
 }
 
 /* title */
@@ -116,7 +160,7 @@ body{cursor:none}
 .seek-track:hover #seekFill::after,
 #tvOverlay.visible #seekFill::after{transform:translateY(-50%) scale(1)}
 
-/* ── Controls row — full width, play truly centered ── */
+/* ── Controls row ── */
 .controls-row{
   display:flex;
   align-items:center;
@@ -124,18 +168,15 @@ body{cursor:none}
   padding:0;
 }
 
-/* left and right each take equal flex space so center stays centered */
 .ctrl-left{display:flex;align-items:center;gap:24px;flex:1;justify-content:flex-start}
 .ctrl-center{display:flex;align-items:center;flex-shrink:0}
 .ctrl-right{display:flex;align-items:center;gap:24px;flex:1;justify-content:flex-end}
-/* gear sits inside ctrl-right, pushed to the far end */
 .ctrl-gear{display:flex;align-items:center;margin-left:auto}
 
 .tv-btn{display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer;outline:none;border-radius:999px;transition:background .13s,transform .1s,box-shadow .13s;user-select:none;-webkit-tap-highlight-color:transparent;flex-shrink:0}
 .tv-btn:active{transform:scale(.87)}
 .tv-btn.focused{background:rgba(255,255,255,0.15);box-shadow:0 0 0 2px rgba(255,255,255,0.28)}
 
-/* skip buttons — larger */
 .btn-skip{
   width:64px;height:64px;
   color:rgba(255,255,255,0.75);
@@ -147,7 +188,6 @@ body{cursor:none}
 .btn-skip:hover,.btn-skip.focused{color:var(--text);background:rgba(255,255,255,0.12)}
 .btn-skip svg{width:28px;height:28px}
 
-/* step ±5 buttons */
 .btn-step{
   width:60px;height:60px;
   color:rgba(255,255,255,0.8);
@@ -158,7 +198,6 @@ body{cursor:none}
 .btn-step:hover,.btn-step.focused{color:var(--text);background:rgba(255,255,255,0.12)}
 .btn-step svg{width:26px;height:26px}
 
-/* play button */
 .btn-play{
   width:96px;height:96px;
   background:var(--text);color:#000;
@@ -168,7 +207,6 @@ body{cursor:none}
 .btn-play:hover{background:#e8e8e8}
 .btn-play.focused{background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,0.25),0 8px 32px rgba(0,0,0,.5)}
 
-/* gear */
 .btn-gear{
   width:54px;height:54px;
   background:rgba(255,255,255,0.06);
@@ -180,7 +218,7 @@ body{cursor:none}
 .btn-gear:hover,.btn-gear.focused{background:rgba(255,255,255,0.12);color:var(--text);border-color:rgba(255,255,255,0.25)}
 .btn-gear svg{width:22px;height:22px}
 
-/* ── Quality panel — anchored to right edge of overlay ── */
+/* ── Quality panel ── */
 #qualityPanel{
   position:fixed;bottom:200px;right:48px;
   background:rgba(12,12,12,.97);backdrop-filter:blur(32px);
@@ -230,6 +268,17 @@ body{cursor:none}
 </style>
 </head>
 <body>
+
+<!-- ── Download Extension button (always visible on waiting screen) ── -->
+<button id="downloadExtBtn" title="Download the DirectCast browser extension">
+  <!-- Download arrow icon -->
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+  </svg>
+  Download Extension
+</button>
 
 <div id="waitingScreen">
   <p class="ws-brand">DirectCast</p>
@@ -281,7 +330,6 @@ body{cursor:none}
 
     <div class="controls-row">
 
-      <!-- Left: skip -10, step -5 -->
       <div class="ctrl-left">
         <button class="tv-btn btn-skip" id="skipBackBtn" title="-10s">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -298,7 +346,6 @@ body{cursor:none}
         </button>
       </div>
 
-      <!-- Center: play/pause -->
       <div class="ctrl-center">
         <button class="tv-btn btn-play" id="playPauseBtn">
           <svg id="playIcon"  width="40" height="40" viewBox="0 0 24 24" fill="#000"><polygon points="7,3 21,12 7,21"/></svg>
@@ -309,7 +356,6 @@ body{cursor:none}
         </button>
       </div>
 
-      <!-- Right: step +5, skip +10, gear -->
       <div class="ctrl-right">
         <button class="tv-btn btn-step" id="seekFwdBtn" title="+5s">
           <svg viewBox="0 0 24 24" fill="currentColor">
@@ -399,7 +445,36 @@ const videoEl=      $('videoEl'),
       skipFwdBtn=   $('skipFwdBtn'),
       qualityBtn=   $('qualityBtn'),
       qualityPanel= $('qualityPanel'),
-      qpList=       $('qpList');
+      qpList=       $('qpList'),
+      downloadExtBtn=$('downloadExtBtn');
+
+// ── Download Extension ──────────────────────────────────────────────────────
+downloadExtBtn.addEventListener('click', async () => {
+  if (downloadExtBtn.classList.contains('loading')) return;
+  downloadExtBtn.classList.add('loading');
+  downloadExtBtn.querySelector('span') && (downloadExtBtn.querySelector('span').textContent = 'Downloading…');
+
+  try {
+    const res = await fetch('/api/download-extension');
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'directcast-extension.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Extension downloaded');
+  } catch (err) {
+    console.error('[download-extension]', err);
+    showToast('Download failed — check console');
+  } finally {
+    downloadExtBtn.classList.remove('loading');
+  }
+});
+// ────────────────────────────────────────────────────────────────────────────
 
 const CONTROLS = [skipBackBtn, seekBackBtn, playPauseBtn, seekFwdBtn, skipFwdBtn, qualityBtn];
 const QP_OPTS  = Array.from(qpList.querySelectorAll('.qp-opt'));
@@ -500,7 +575,6 @@ function stretchVideo(){
   const sw=window.innerWidth, sh=window.innerHeight;
   let sx=sw/vw, sy=sh/vh;
   if(state.cropBars){
-    // scale uniformly so the smaller dimension fills the screen, cropping the bars
     const s=Math.max(sx,sy);
     sx=s; sy=s;
   }
